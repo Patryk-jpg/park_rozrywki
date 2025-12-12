@@ -97,9 +97,12 @@ void park_wspolne::uruchom_pracownikow() {
             exit(1);
         }
         if (pid == 0) {
-            execl("./pracownik", "pracownik", i, NULL);
-            perror("execl");
-            exit(1);
+            char arg[16];
+            snprintf(arg, sizeof(arg), "%d", i);
+            char* args[] = { (char*)"pracownik", arg, NULL };
+            execvp("./pracownik",args);
+            perror("execvp");
+            _exit(1);
         }
     }
 
@@ -110,7 +113,8 @@ void park_wspolne::uruchom_kase() {
         perror("fork - kasa");
         exit(1);
     }
-    execl("./Kasa", "Kasa", NULL);
+    char* args[] = { (char*)"Kasa", NULL };
+    execvp("./Kasa", args);
 
 }
 
@@ -119,7 +123,9 @@ void park_wspolne::uruchom_kase_restauracji() {
     pid_t pid = fork();
     if (pid == -1) {
         perror("fork - kasa restauracji");
-        execl("./Restauracja", "Kasa", NULL);
+        char* args[] = { (char*)"Restauracja", NULL };
+
+        execvp("./Restauracja",args);
     }
 }
 
@@ -127,4 +133,5 @@ void park_wspolne::uruchom_kase_restauracji() {
 void handler_zamknij_park(int sig) {
 
     printf("zamknij_park\n");
+    exit(sig);
 }

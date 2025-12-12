@@ -8,9 +8,9 @@
 #include <unistd.h>
 
 
-int main(int nr_atrakcji) {
+int main(int argc, char* argv[]) {
 
     printf("[PRACOWNIK-%d] Start obsługi atrakcji: %s (PID: %d)\n",
-         nr_atrakcji, atrakcje[nr_atrakcji].nazwa, getpid());
+         *argv[1], atrakcje[(int)*argv[1]].nazwa, getpid());
 
 }

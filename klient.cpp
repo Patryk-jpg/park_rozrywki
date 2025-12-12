@@ -10,7 +10,7 @@
 park_wspolne* g_park = nullptr;
 static klient* g_klient;
 
-int main() {
+int main(int argc, char* argv[]) {
     srand(time(NULL));
     g_park = attach_to_shared_block();
     if (rand()%100 ==1) {

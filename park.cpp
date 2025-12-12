@@ -30,7 +30,9 @@ int   main() {
         if (rand() % 100 > 40) {
             pid_t pid = fork();
             if (pid == 0) {
-                execl("./klient", "./klient", NULL);
+                char* args[] = { (char*)"klient", NULL };
+                execvp("./klient", args);
+                perror("execvp-klient");
             }
         }
     }
