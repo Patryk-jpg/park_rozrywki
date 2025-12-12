@@ -101,7 +101,7 @@ void park_wspolne::uruchom_pracownikow() {
             snprintf(arg, sizeof(arg), "%d", i);
             char* args[] = { (char*)"pracownik", arg, NULL };
             execvp("./pracownik",args);
-            perror("execvp");
+            perror("execvp-pracownik");
             _exit(1);
         }
     }
@@ -133,5 +133,5 @@ void park_wspolne::uruchom_kase_restauracji() {
 void handler_zamknij_park(int sig) {
 
     printf("zamknij_park\n");
-    exit(sig);
+    _exit(sig);
 }
