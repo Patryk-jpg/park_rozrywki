@@ -5,15 +5,12 @@ set(CMAKE_CXX_STANDARD 14)
 
 include_directories(.)
 
-add_executable(park_rozrywki
-        Kasa.cpp
-        Kasa.h
-        kierownik.cpp
-        kierownik.h
-        klient.cpp
-        klient.h
-        main.cpp
-        Park.cpp
-        Park.h
-        Pracownik.cpp
-        Pracownik.h)
+set(SHARED
+        park_wspolne.cpp
+)
+
+# Executables
+add_executable(park ${SHARED} park.cpp)
+add_executable(klient klient.cpp ${SHARED})
+add_executable(pracownik Pracownik.cpp ${SHARED})
+
