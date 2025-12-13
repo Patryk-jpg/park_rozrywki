@@ -11,9 +11,16 @@ int   main() {
     printf("   PARK ROZRYWKI - SYMULACJA          \n");
     printf("========================================\n\n");
     srand(time(NULL));
+    const int memfile = open(SEED_FILENAME_PARK, O_CREAT | O_RDONLY, 0666);
+    error_check(memfile, "open");
+    close(memfile);
+    const int semfile = open(SEED_FILENAME_SEMAPHORES, O_CREAT | O_RDONLY, 0666);
+    error_check(semfile, "open");
+    close(semfile);
+    const int queuefile = open(SEED_FILENAME_QUEUE, O_CREAT | O_RDONLY, 0666);
+    error_check(queuefile, "open");
+    close(queuefile);
 
-    int fd = open(SEED_FILENAME, O_CREAT | O_RDONLY, 0666);
-    close(fd);
     g_park = attach_to_shared_block();
     memset(g_park, 0, sizeof(park_wspolne));
     g_park->pid_parku = getpid();
@@ -44,4 +51,7 @@ int   main() {
         }
     }
     printf("PARK ZAMKNIETY");
+    detach_from_shared_block(g_park);
+    destroy_shared_block((char*)SEED_FILENAME_PARK);
+
 }

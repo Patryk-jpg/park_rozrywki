@@ -17,8 +17,11 @@ struct klient
     SimTime czasWejscia;
     SimTime czasWyjscia;
     int typ_biletu;
+    int cena;
 
 };
+
+void wejdz_do_parku();
 
 
 #endif //PARK_ROZRYWKI_KLIENT_H

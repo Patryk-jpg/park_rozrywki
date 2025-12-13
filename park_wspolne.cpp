@@ -8,7 +8,7 @@ using namespace std;
 
 int get_shared_block_id() {
     key_t key;
-    key = ftok(SEED_FILENAME, *PARK_SEED);
+    key = ftok(SEED_FILENAME_PARK, PARK_SEED);
     if (key == IPC_ERROR) {
         perror("ftok");
         return IPC_ERROR;
@@ -134,4 +134,19 @@ void handler_zamknij_park(int sig) {
 
     printf("zamknij_park\n");
     _exit(sig);
+}
+
+int create_message_queue(const char* filename, int seed) {
+    key_t key = ftok(filename, seed);
+    error_check((int) key, "ftok");
+    int kasaId = msgget(key, 0666 | IPC_CREAT);
+    error_check(kasaId, "msgget");
+    return kasaId;
+}
+
+void error_check(int id, const string& message) {
+    if (id < 0) {
+        perror(message.c_str());
+        exit(1);
+    }
 }

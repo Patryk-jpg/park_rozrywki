@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <vector>
+#include <sys/msg.h>
 #define MAX_KLIENTOW_W_PARKU 100
 #define CZAS_OTWARCIA 8
 #define CZAS_ZAMKNIECIA 20
@@ -24,10 +25,14 @@
 #define BILET_4H 240
 #define BILET_6H 360
 #define BILET_1D 720
-#define PARK_SEED "A"
-#define SEED_FILENAME "/tmp/sharedfile"
+#define PARK_SEED 'A'
+#define SEED_FILENAME_PARK "/tmp/sharedfile"
+#define SEED_FILENAME_QUEUE "/tmp/queuefile"
+#define SEED_FILENAME_SEMAPHORES "/tmp/semaphores"
 #define SEZON_LETNI true
-
+#define QUEUE_SEED 'Q'
+#define SEM_SEED 'S'
+#define QUEUE_REST_SEED 'R'
 
 #define IPC_ERROR (-1)
 struct Atrakcja {
@@ -48,7 +53,8 @@ struct Atrakcja {
 struct SimTime {
     int hour = 0;
     int minute = 0;
-
+    SimTime() = default; // default constructor
+    SimTime(int h, int m) : hour(h), minute(m) {}
     void increment_minute() {
         minute++;
         if (minute >= 60) {
@@ -59,6 +65,18 @@ struct SimTime {
     }
     void print() const {
         printf("%02d:%02d\n", hour, minute);
+    }
+    SimTime operator+(const SimTime& other) const {
+        SimTime result;
+        result.minute = minute + other.minute;
+        result.hour = hour + other.hour + result.minute / 60;
+        if (result.hour >= CZAS_ZAMKNIECIA) {
+            result.hour = CZAS_ZAMKNIECIA;
+            if (result.minute > 0) {
+                result.minute = 0;
+            }
+        }
+        return result;
     }
 };
 
@@ -128,6 +146,43 @@ int read_semaphore(int semId, int number);
 
 void handler_zamknij_park(int sig);
 
+int create_message_queue(const char* filename, int seed);
+void add_message_to_message_queue();
+void load_message_from_message_queue();
 
+enum typ_biletu {
+    BILET2H,
+    BILET4H,
+    BILET6H,
+    BILET1D,
+    BILETVIP
+};
+struct klient_message{
+    long mtype;
+    int typ_biletu;
+    int ilosc_biletow;
+    pid_t pid_klienta;
+};
 
+struct serwer_message {
+    long mtype;
+    SimTime start_biletu;
+    SimTime end_biletu;
+    float cena;
+    int status;
+};
+
+struct biletInfo {
+    int cena;
+    int czasTrwania;
+    char nazwa[50];
+};
+const biletInfo bilety[5] = {
+{50,2, "BILET2H"},
+    {65, 4, "BILET4H"},
+{85, 6, "BILET6H"},
+{65, 24, "BILET1D"},
+{0, 24, "BILETVIP"},
+};
+void error_check(int id, const std::string& message);
 #endif //PARK_ROZRYWKI_PARK_H
