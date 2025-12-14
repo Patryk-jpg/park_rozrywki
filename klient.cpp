@@ -57,6 +57,7 @@ void wejdz_do_parku() {
     printf("Klient %d wychodzi z kolejki\n",g_klient.pidKlienta);
     if (reply.status == -1) {
         printf("Nie udalo sie wejsc do parku, klient %d ucieka\n", g_klient.pidKlienta);
+        signal_semaphore(g_park->licznik_klientow, 0);
         return;
     }
     g_klient.czasWejscia = reply.start_biletu;
@@ -69,17 +70,17 @@ void wejdz_do_parku() {
     baw_sie();
 
 }
+
+void baw_sie() {
+    while (g_park->czas_w_symulacji.hour <  g_klient.czasWyjscia.hour) {
+        usleep(100000);
+    }
+    wyjdz_z_parku();
+}
+
 void wyjdz_z_parku() {
 
     signal_semaphore(g_park->licznik_klientow, 0);
     printf("Klient %d wychodzi z parku CZAS: %d : %d \n", g_klient.pidKlienta, g_park->czas_w_symulacji.hour,g_park->czas_w_symulacji.minute );
 
 }
-
-void baw_sie() {
-    while (g_park->czas_w_symulacji < g_klient.czasWyjscia) {
-        usleep(100000);
-    }
-    wyjdz_z_parku();
-}
-
