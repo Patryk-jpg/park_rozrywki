@@ -1,12 +1,12 @@
 //
 // Created by janik on 11/12/2025.
 //
-
+#include "park_wspolne.h"
 #include "klient.h"
 
 #include <unistd.h>
 
-#include "park_wspolne.h"
+
 park_wspolne* g_park = nullptr;
 static klient g_klient;
 
@@ -77,11 +77,8 @@ void wyjdz_z_parku() {
 }
 
 void baw_sie() {
-    int time = bilety[g_klient.typ_biletu].czasTrwania;
-    if (g_park->czas_w_symulacji.hour + time >= CZAS_ZAMKNIECIA) {
-        sleep((CZAS_ZAMKNIECIA - g_park->czas_w_symulacji.hour) * 3);
-    }else {
-        sleep(time * 3);
+    while (g_park->czas_w_symulacji < g_klient.czasWyjscia) {
+        usleep(100000);
     }
     wyjdz_z_parku();
 }

@@ -66,18 +66,7 @@ struct SimTime {
     void print() const {
         printf("%02d:%02d\n", hour, minute);
     }
-    SimTime operator+(const SimTime& other) const {
-        SimTime result;
-        result.minute = minute + other.minute;
-        result.hour = hour + other.hour + result.minute / 60;
-        if (result.hour >= CZAS_ZAMKNIECIA) {
-            result.hour = CZAS_ZAMKNIECIA;
-            if (result.minute > 0) {
-                result.minute = 0;
-            }
-        }
-        return result;
-    }
+    SimTime operator+(const SimTime& other) const;
 };
 
 class park_wspolne {

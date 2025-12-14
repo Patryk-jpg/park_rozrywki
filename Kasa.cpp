@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
         reply.mtype = request.pid_klienta;
         reply.cena = request.ilosc_biletow * bilety[request.typ_biletu].cena;
         reply.start_biletu = g_park->czas_w_symulacji;
-        reply.end_biletu = g_park->czas_w_symulacji + SimTime(bilety[request.typ_biletu].czasTrwania,0);
+        reply.end_biletu = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute) + SimTime(bilety[request.typ_biletu].czasTrwania,0);
         reply.status = -1;
         wait_semaphore(g_park->licznik_klientow, 0,0);
         if (g_park->park_otwarty) {

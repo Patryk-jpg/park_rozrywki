@@ -90,6 +90,21 @@ int read_semaphore(int semID, int number) {
     return semctl(semID, number, GETVAL, NULL);
 }
 
+SimTime SimTime::operator+(const SimTime &other) const {
+
+        SimTime result;
+        result.minute = minute + other.minute;
+        result.hour = hour + other.hour + result.minute / 60;
+        if (result.hour >= CZAS_ZAMKNIECIA) {
+            result.hour = CZAS_ZAMKNIECIA;
+            if (result.minute > 0) {
+                result.minute = 0;
+            }
+        }
+        return result;
+
+}
+
 void park_wspolne::uruchom_pracownikow() {
 
     for (int i=0; i < 17; i++) {
