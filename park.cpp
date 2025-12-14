@@ -29,7 +29,7 @@ int   main() {
     g_park->czas_w_symulacji.hour = CZAS_OTWARCIA;
     g_park->czas_w_symulacji.minute = 0;
     g_park->uruchom_pracownikow();
-    //g_park->uruchom_kase();
+    g_park->uruchom_kase();
     //g_park->uruchom_kase_restauracji();
     //signal(SIGINT, handler_zamknij_park);
     while (g_park->park_otwarty) {

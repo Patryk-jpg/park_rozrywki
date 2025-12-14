@@ -57,7 +57,9 @@ int free_semaphore(int semId, int number) {
 }
 
 void initialize_semaphore(int semId, int number, int val) {
-    if ( semctl(semId, number, SETVAL, val) == -1 ) {
+    union semun arg;
+    arg.val = val;
+    if ( semctl(semId, number, SETVAL, arg) == -1 ) {
         perror("semctl SETVAl");
         exit(1);
     }
@@ -113,8 +115,10 @@ void park_wspolne::uruchom_kase() {
         perror("fork - kasa");
         exit(1);
     }
-    char* args[] = { (char*)"Kasa", NULL };
-    execvp("./Kasa", args);
+    if (pid==0) {
+        char* args[] = { (char*)"Kasa", NULL };
+        execvp("./Kasa", args);
+    }
 
 }
 

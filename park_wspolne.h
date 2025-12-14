@@ -185,4 +185,11 @@ const biletInfo bilety[5] = {
 {0, 24, "BILETVIP"},
 };
 void error_check(int id, const std::string& message);
+
+union semun {
+    int val;
+    struct semid_ds *buf;
+    unsigned short *array;
+    struct seminfo *__buf;
+};
 #endif //PARK_ROZRYWKI_PARK_H

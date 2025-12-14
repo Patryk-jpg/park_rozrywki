@@ -36,8 +36,8 @@ int main(int argc, char* argv[]) {
 
 }
 void wejdz_do_parku() {
-    int semId = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED);
-
+    int sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED);
+    int semId = allocate_semaphore(sem_key, 1, 0);
     klient_message k_msg;
     serwer_message reply;
     int kasaId = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
@@ -50,19 +50,19 @@ void wejdz_do_parku() {
     }
     k_msg.ilosc_biletow = 1;
     k_msg.pid_klienta = g_klient.pidKlienta;
-    printf("Klient %d - zapisuje sie do kolejki", g_klient.pidKlienta);
+    printf("Klient %d - zapisuje sie do kolejki\n", g_klient.pidKlienta);
     msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
 
     msgrcv(kasaId, &reply, sizeof(reply) - sizeof(long), g_klient.pidKlienta, 0);
 
-    printf("Klient %d wychodzi z kolejki",g_klient.pidKlienta);
+    printf("Klient %d wychodzi z kolejki\n",g_klient.pidKlienta);
     if (reply.status == -1) {
-        printf("Nie udalo sie wejsc do parku, klient %d ucieka", g_klient.pidKlienta);
+        printf("Nie udalo sie wejsc do parku, klient %d ucieka\n", g_klient.pidKlienta);
         return;
     }
     g_klient.czasWejscia = reply.start_biletu;
     g_klient.cena = reply.cena;
-    printf("Klient %d w parku, Ilosc ludzi w parku: %d ",g_klient.pidKlienta, read_semaphore(semId,1));
+    printf("Klient %d w parku, Ilosc ludzi w parku: %d \n",g_klient.pidKlienta, MAX_KLIENTOW_W_PARKU - read_semaphore(semId,0));
 
 
 }
