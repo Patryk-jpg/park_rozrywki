@@ -22,28 +22,27 @@ int main(int argc, char* argv[]) {
     g_klient.wiek = 1 + rand()%90;
     g_klient.wzrost = 50 + rand()%151;
     g_klient.pidKlienta = getpid();
-
+    g_klient.typ_biletu = rand() % 4;
     printf("Klient: %d, wzrost: %d, wiek: %d, utworzono, %02d:%02d\n",
         g_klient.pidKlienta,
         g_klient.wzrost,
         g_klient.wiek,
         g_park->czas_w_symulacji.hour,
         g_park->czas_w_symulacji.minute);
+        fflush(stdout);
     wejdz_do_parku();
 
-    fflush(stdout);
     detach_from_shared_block(g_park);
 
 }
 void wejdz_do_parku() {
-    int sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED);
-    int semId = allocate_semaphore(sem_key, 1, 0);
+
     klient_message k_msg;
     serwer_message reply;
     int kasaId = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
     typ_biletu bilet;
     k_msg.mtype = 5;
-    k_msg.typ_biletu =  rand() % 4;
+    k_msg.typ_biletu = g_klient.typ_biletu;
     if (g_klient.czyVIP == true) {
         k_msg.mtype = 1;
         k_msg.typ_biletu = 4;
@@ -62,7 +61,28 @@ void wejdz_do_parku() {
     }
     g_klient.czasWejscia = reply.start_biletu;
     g_klient.cena = reply.cena;
-    printf("Klient %d w parku, Ilosc ludzi w parku: %d \n",g_klient.pidKlienta, MAX_KLIENTOW_W_PARKU - read_semaphore(semId,0));
-
+    g_klient.czasWyjscia = reply.end_biletu;
+    printf("Klient %d w parku z biletem %s, wychodzi o %02d:%02d "
+           "Ilosc ludzi w parku: %d \n",g_klient.pidKlienta, bilety[g_klient.typ_biletu].nazwa,
+           g_klient.czasWyjscia.hour, g_klient.czasWyjscia.minute
+           ,MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow,0));
+    baw_sie();
 
 }
+void wyjdz_z_parku() {
+
+    signal_semaphore(g_park->licznik_klientow, 0);
+    printf("Klient %d wychodzi z parku CZAS: %d : %d \n", g_klient.pidKlienta, g_park->czas_w_symulacji.hour,g_park->czas_w_symulacji.minute );
+
+}
+
+void baw_sie() {
+    int time = bilety[g_klient.typ_biletu].czasTrwania;
+    if (g_park->czas_w_symulacji.hour + time >= CZAS_ZAMKNIECIA) {
+        sleep((CZAS_ZAMKNIECIA - g_park->czas_w_symulacji.hour) * 3);
+    }else {
+        sleep(time * 3);
+    }
+    wyjdz_z_parku();
+}
+

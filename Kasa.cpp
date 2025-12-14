@@ -13,10 +13,9 @@ int main(int argc, char *argv[]) {
     fflush(stdout);
     g_park = attach_to_shared_block();
     int kasaId = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
-    int sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED);
-    int licznik_klientow = allocate_semaphore(sem_key, 1, 0666| IPC_CREAT | IPC_EXCL);
-    initialize_semaphore(licznik_klientow, 0, MAX_KLIENTOW_W_PARKU);
-    while (g_park->park_otwarty) {
+
+    initialize_semaphore(g_park->licznik_klientow, 0, MAX_KLIENTOW_W_PARKU);
+    while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
         klient_message request;
         serwer_message reply;
         ssize_t n = msgrcv(kasaId, &request, sizeof(request) - sizeof(long), -10, IPC_NOWAIT);
@@ -29,12 +28,11 @@ int main(int argc, char *argv[]) {
         reply.start_biletu = g_park->czas_w_symulacji;
         reply.end_biletu = g_park->czas_w_symulacji + SimTime(bilety[request.typ_biletu].czasTrwania,0);
         reply.status = -1;
-        wait_semaphore(licznik_klientow, 0,0);
+        wait_semaphore(g_park->licznik_klientow, 0,0);
         if (g_park->park_otwarty) {
             reply.status = 0;
         }
         msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
     }
 
-    free_semaphore(licznik_klientow, 0);
 }

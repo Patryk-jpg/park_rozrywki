@@ -82,11 +82,11 @@ struct SimTime {
 
 class park_wspolne {
     public:
-    int liczba_klientow_w_parku;
     int max_klientow;
     bool park_otwarty;
     SimTime czas_w_symulacji;
     pid_t pid_parku;
+    int licznik_klientow;
 
     void uruchom_pracownikow();
     void uruchom_kase();

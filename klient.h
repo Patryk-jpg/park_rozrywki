@@ -22,6 +22,7 @@ struct klient
 };
 
 void wejdz_do_parku();
-
+void wyjdz_z_parku();
+void baw_sie();
 
 #endif //PARK_ROZRYWKI_KLIENT_H
