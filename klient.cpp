@@ -39,7 +39,7 @@ void wejdz_do_parku() {
 
     klient_message k_msg;
     serwer_message reply;
-    int kasaId = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
+    int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
     typ_biletu bilet;
     k_msg.mtype = 5;
     k_msg.typ_biletu = g_klient.typ_biletu;
@@ -67,11 +67,35 @@ void wejdz_do_parku() {
            "Ilosc ludzi w parku: %d \n",g_klient.pidKlienta, bilety[g_klient.typ_biletu].nazwa,
            g_klient.czasWyjscia.hour, g_klient.czasWyjscia.minute
            ,MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow,0));
+    g_klient.wParku = true;
     baw_sie();
 
 }
 
+void idz_do_atrakcji() {
+    int nr_atrakcji =  rand() % 17;
+    int atrakcja_id = g_park->pracownicy_keys[nr_atrakcji];
+    ACKmes mes;
+    mes.mtype = 1; // 1= "chce dolaczyc do atrakcji"
+    mes.ack = getpid();
+    msgsnd(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), 0);
+    msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, 0);
+    if (mes.ack == -1){ return; }
+
+    printf("Klient %d bawi się na %s", g_klient.pidKlienta, atrakcje[nr_atrakcji].nazwa);
+
+    msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, 0);
+    if (mes.ack == -10) {
+        printf("Klient wypada z wagoniku i umiera ");
+        kill(getpid(), SIGKILL);
+    }
+    printf("Klient %d wysedł z na %s", g_klient.pidKlienta, atrakcje[nr_atrakcji].nazwa);
+
+
+}
+
 void baw_sie() {
+    idz_do_atrakcji();
     while (g_park->czas_w_symulacji.hour <  g_klient.czasWyjscia.hour) {
         usleep(100000);
     }
@@ -81,6 +105,6 @@ void baw_sie() {
 void wyjdz_z_parku() {
 
     signal_semaphore(g_park->licznik_klientow, 0);
-    printf("Klient %d wychodzi z parku CZAS: %d : %d \n", g_klient.pidKlienta, g_park->czas_w_symulacji.hour,g_park->czas_w_symulacji.minute );
+    printf("Klient %d wychodzi z parku CZAS: %02d:%02d \n", g_klient.pidKlienta, g_park->czas_w_symulacji.hour,g_park->czas_w_symulacji.minute );
 
 }

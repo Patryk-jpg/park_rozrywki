@@ -158,11 +158,17 @@ void handler_zamknij_park(int sig) {
 int create_message_queue(const char* filename, int seed) {
     key_t key = ftok(filename, seed);
     error_check((int) key, "ftok");
-    int kasaId = msgget(key, 0666 | IPC_CREAT);
+    int kasaId = msgget(key, 0666 | IPC_CREAT | IPC_EXCL);
     error_check(kasaId, "msgget");
     return kasaId;
 }
-
+int join_message_queue(const char* filename, int seed) {
+    key_t key = ftok(filename, seed);
+    error_check((int) key, "ftok");
+    int kasaId = msgget(key, 0666 );
+    error_check(kasaId, "msgget");
+    return kasaId;
+}
 void error_check(int id, const string& message) {
     if (id < 0) {
         perror(message.c_str());

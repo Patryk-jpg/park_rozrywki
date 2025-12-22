@@ -18,7 +18,7 @@ struct klient
     SimTime czasWyjscia;
     int typ_biletu;
     int cena;
-
+    bool wParku;
 };
 
 void wejdz_do_parku();

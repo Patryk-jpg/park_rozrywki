@@ -76,6 +76,7 @@ class park_wspolne {
     SimTime czas_w_symulacji;
     pid_t pid_parku;
     int licznik_klientow;
+    int pracownicy_keys[17];
 
     void uruchom_pracownikow();
     void uruchom_kase();
@@ -125,6 +126,7 @@ static int get_shared_block_id();
 park_wspolne* attach_to_shared_block();
 bool detach_from_shared_block(park_wspolne* block);
 bool destroy_shared_block(char* filename);
+int join_message_queue(const char* filename, int seed);
 
 int allocate_semaphore(key_t key, int number, int flag);
 int free_semaphore(int SemId, int number);
@@ -166,6 +168,12 @@ struct biletInfo {
     int czasTrwania;
     char nazwa[50];
 };
+
+struct ACKmes {
+    long mtype;
+    int ack;
+};
+
 const biletInfo bilety[5] = {
 {50,2, "BILET2H"},
     {65, 4, "BILET4H"},
