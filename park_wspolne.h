@@ -67,6 +67,17 @@ struct SimTime {
         printf("%02d:%02d\n", hour, minute);
     }
     SimTime operator+(const SimTime& other) const;
+    bool operator<=(const SimTime& other) const {
+        if (hour < other.hour) return true;
+        if (hour == other.hour && minute <= other.minute) return true;
+        return false;
+    }
+    // operator porównania >=
+    bool operator>=(const SimTime& other) const {
+        if (hour > other.hour) return true;
+        if (hour == other.hour && minute >= other.minute) return true;
+        return false;
+    }
 };
 
 class park_wspolne {
@@ -172,6 +183,7 @@ struct biletInfo {
 struct ACKmes {
     long mtype;
     int ack;
+    int wagonik;
 };
 
 const biletInfo bilety[5] = {
@@ -189,4 +201,24 @@ union semun {
     unsigned short *array;
     struct seminfo *__buf;
 };
+
+
+#include <random>
+
+static std::mt19937 rng;
+
+inline void init_random() {
+    unsigned int seed = static_cast<unsigned int>(time(NULL)) ^ (getpid() << 16);
+    rng.seed(seed);
+}
+
+inline int random_int(int min, int max) {
+    std::uniform_int_distribution<int> dist(min, max);
+    return dist(rng);
+}
+
+inline bool random_chance(int percent) {
+    return random_int(0, 99) < percent;
+}
 #endif //PARK_ROZRYWKI_PARK_H
+

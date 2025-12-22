@@ -3,6 +3,8 @@
 //
 
 #include "Pracownik.h"
+
+#include <algorithm>
 #include <park_wspolne.h>
 #include <cstdio>
 #include <unistd.h>
@@ -46,6 +48,14 @@ int main(int argc, char* argv[]) {
     while (g_park->park_otwarty) {
         SimTime curTime = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
 
+            while (msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 99, IPC_NOWAIT) != -1) {
+                auto it = std::find(czasyJazdy[mes.wagonik].pids.begin(),
+                    czasyJazdy[mes.wagonik].pids.end(), mes.ack);
+                czasyJazdy[mes.wagonik].pids.erase(it);
+                mes.mtype = mes.ack;
+                msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0); //potwierdzenie
+                printf("Klient %d zrezygnowal z %s w wagoniku %d\n", mes.ack, atrakcje[nr_atrakcji].nazwa, mes.wagonik);
+            }
             for (int i = 0; i < iloscWagonikow; i++) {
                 if (czasyJazdy[i].zajete==false) {continue;}
                 if (czasyJazdy[i].czasJazdy.hour < curTime.hour || (czasyJazdy[i].czasJazdy.hour == curTime.hour && czasyJazdy[i].czasJazdy.minute <= curTime.minute)) {
@@ -72,8 +82,9 @@ int main(int argc, char* argv[]) {
         if (freeCart != -1 && buf.msg_qnum > 0) {
             czasy nowa_jazda;
             int countPeople = atrakcje[nr_atrakcji].po_ile_osob_wchodzi;
-            while (countPeople > 0 && msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 1, IPC_NOWAIT) != -1) {
+            while (countPeople > 0 && msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 100, IPC_NOWAIT) != -1) {
                 mes.mtype = mes.ack;
+                mes.wagonik = freeCart;
                 msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0);
                 nowa_jazda.pids.push_back(mes.ack);
                 countPeople--;

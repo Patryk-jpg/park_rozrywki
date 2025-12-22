@@ -10,19 +10,25 @@
 park_wspolne* g_park = nullptr;
 static klient g_klient;
 
+bool contains(std::vector<int> anulowalne, int val) {
+    for (int i=0; i<anulowalne.size(); i++) {
+        if (val == anulowalne[i]) return true;
 
+    }
+    return false;
+}
 int main(int argc, char* argv[]) {
 
-
-    srand(time(NULL));
+    init_random();
     g_park = attach_to_shared_block();
     if (rand()%100 ==1) {
         g_klient.czyVIP=true;
     }
-    g_klient.wiek = 1 + rand()%90;
-    g_klient.wzrost = 50 + rand()%151;
+    g_klient.wiek = random_int(1, 90);
+    g_klient.wzrost = random_int(50, 200);
     g_klient.pidKlienta = getpid();
-    g_klient.typ_biletu = rand() % 4;
+    g_klient.typ_biletu = random_int(0, 3);
+
     /**printf("Klient: %d, wzrost: %d, wiek: %d, utworzono, %02d:%02d\n",
         g_klient.pidKlienta,
         g_klient.wzrost,
@@ -73,12 +79,13 @@ void wejdz_do_parku() {
 
 }
 
-void idz_do_atrakcji() {
-    int nr_atrakcji =  rand() % 17;
+void idz_do_atrakcji(int nr_atrakcji) {
+
     int atrakcja_id = g_park->pracownicy_keys[nr_atrakcji];
     ACKmes mes;
-    mes.mtype = 1; // 1= "chce dolaczyc do atrakcji"
+    mes.mtype = 100; // 100 = "chce dolaczyc do atrakcji"
     mes.ack = getpid();
+    mes.wagonik =0;
     msgsnd(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), 0);
 
     //printf("Klient %d czeka w kolejce do %s o godz %02d:%02d \n", g_klient.pidKlienta, atrakcje[nr_atrakcji].nazwa
@@ -86,11 +93,30 @@ void idz_do_atrakcji() {
 
     msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, 0);
     if (mes.ack == -1){ return; }
-
+    int moj_wagonik = mes.wagonik;
     //printf("Klient %d bawi się na %s o godz %02d:%02d \n", g_klient.pidKlienta, atrakcje[nr_atrakcji].nazwa
     //    ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
+    std::vector<int> anulowalne = {1,2,3,4,5,13,14,15,16,17};
+    bool czyZrezygnuje = random_chance(10);
 
-    msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, 0);
+    if (contains(anulowalne, nr_atrakcji) && czyZrezygnuje) {
+        SimTime timeout = g_park->czas_w_symulacji + SimTime(0, rand()%atrakcje[nr_atrakcji].czas_trwania_min);
+
+        while (g_park->czas_w_symulacji <= timeout) {
+            int mess = msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, IPC_NOWAIT);
+            if (mess != -1) {break;}
+            usleep(10000);
+
+        }
+        mes.mtype = 99; // rezygnuje z atrakcji
+        mes.ack = g_klient.pidKlienta;
+        mes.wagonik = moj_wagonik;
+        msgsnd(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), 0);
+        msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, 0);
+    }
+    else {
+        msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, 0);
+    }
     if (mes.ack == -10) {
         printf("Klient wypada z wagoniku i umiera ");
         kill(getpid(), SIGKILL);
@@ -102,10 +128,24 @@ void idz_do_atrakcji() {
 }
 
 void baw_sie() {
-    idz_do_atrakcji();
-    while (g_park->czas_w_symulacji.hour <  g_klient.czasWyjscia.hour) {
+    while (g_park->czas_w_symulacji.hour < g_klient.czasWyjscia.hour ||
+       (g_park->czas_w_symulacji.hour == g_klient.czasWyjscia.hour &&
+        g_park->czas_w_symulacji.minute < g_klient.czasWyjscia.minute)) {
+        int nr_atrakcji =  random_int(0, 16);
+
+        while (contains(g_klient.odwiedzone, nr_atrakcji)) {
+            int nr_atrakcji =  rand() % 17;
+        }
+        idz_do_atrakcji(nr_atrakcji);
+        if (!random_chance(5)) {
+            g_klient.odwiedzone.push_back(nr_atrakcji);
+
+        }
+
+
         usleep(100000);
     }
+
     wyjdz_z_parku();
 }
 

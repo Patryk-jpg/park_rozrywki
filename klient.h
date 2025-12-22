@@ -19,6 +19,7 @@ struct klient
     int typ_biletu;
     int cena;
     bool wParku;
+    std::vector<int> odwiedzone;
 };
 
 void wejdz_do_parku();
