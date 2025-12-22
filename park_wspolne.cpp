@@ -94,6 +94,7 @@ SimTime SimTime::operator+(const SimTime &other) const {
 
         SimTime result;
         result.minute = minute + other.minute;
+        result.minute %= 60;
         result.hour = hour + other.hour + result.minute / 60;
         if (result.hour >= CZAS_ZAMKNIECIA) {
             result.hour = CZAS_ZAMKNIECIA;

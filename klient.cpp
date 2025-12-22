@@ -23,13 +23,14 @@ int main(int argc, char* argv[]) {
     g_klient.wzrost = 50 + rand()%151;
     g_klient.pidKlienta = getpid();
     g_klient.typ_biletu = rand() % 4;
-    printf("Klient: %d, wzrost: %d, wiek: %d, utworzono, %02d:%02d\n",
+    /**printf("Klient: %d, wzrost: %d, wiek: %d, utworzono, %02d:%02d\n",
         g_klient.pidKlienta,
         g_klient.wzrost,
         g_klient.wiek,
         g_park->czas_w_symulacji.hour,
         g_park->czas_w_symulacji.minute);
         fflush(stdout);
+    **/
     wejdz_do_parku();
 
     detach_from_shared_block(g_park);
