@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
     while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
         klient_message request;
         serwer_message reply;
-        ssize_t n = msgrcv(kasaId, &request, sizeof(request) - sizeof(long), -10, IPC_NOWAIT);
+        size_t n = msgrcv(kasaId, &request, sizeof(request) - sizeof(long), -10, IPC_NOWAIT);
         if (n == -1) {
             usleep(1000);
             continue;
