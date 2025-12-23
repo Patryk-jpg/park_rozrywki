@@ -17,7 +17,9 @@ int main(int argc, char* argv[]) {
     int licznik_transakcji = 0;
     float suma_przychodow = 0.0f;
     struct msqid_ds buf;
-    while (g_park->park_otwarty) {
+    msgctl(kasa_rest_id, IPC_STAT, &buf);
+
+    while (g_park->park_otwarty && buf.msg_qnum > 0) {
         usleep(50000);
         msgctl(kasa_rest_id, IPC_STAT, &buf);
         if (buf.msg_qnum == 0) {continue;}
