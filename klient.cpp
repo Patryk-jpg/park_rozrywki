@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
 }
 void wejdz_do_parku() {
 
-    klient_message k_msg;
+    klient_message k_msg{};
     serwer_message reply;
     int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
     typ_biletu bilet;
@@ -176,8 +176,15 @@ void baw_sie() {
 }
 
 void wyjdz_z_parku() {
+    int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
 
     signal_semaphore(g_park->licznik_klientow, 0);
+    payment_message k_msg;
+    k_msg.czasWRestauracji = g_klient.czasWRestauracji.toMinutes();
+    k_msg.pid = g_klient.pidKlienta;
+    k_msg.mtype = 101;
+    msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
+    msgrcv(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), g_klient.pidKlienta, 0);
     printf("Klient %d wychodzi z parku CZAS: %02d:%02d \n", g_klient.pidKlienta, g_park->czas_w_symulacji.hour,g_park->czas_w_symulacji.minute );
 
 }

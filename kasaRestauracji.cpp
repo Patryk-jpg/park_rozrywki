@@ -4,11 +4,7 @@
 
 #include "kasaRestauracji.h"
 
-float oblicz_koszt_restauracji(int czas_min) {
-    float koszt = 5.0f + (czas_min / 10) * 2.0f;
-    koszt += random_int(5, 20);
-    return koszt;
-}
+
 
 int main(int argc, char* argv[]) {
     printf("[KASA RESTAURACJI] Uruchamianie...\n");

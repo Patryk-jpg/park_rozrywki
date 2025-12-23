@@ -173,9 +173,16 @@ struct serwer_message {
     SimTime start_biletu;
     SimTime end_biletu;
     float cena;
+    int typ_biletu;
     int status;
 };
+struct payment_message {
+    long mtype;
+    pid_t pid;
+    int czasWRestauracji;
+    float suma;
 
+};
 struct biletInfo {
     int cena;
     int czasTrwania;
@@ -227,5 +234,6 @@ inline int random_int(int min, int max) {
 inline bool random_chance(int percent) {
     return random_int(0, 99) < percent;
 }
+float oblicz_koszt_restauracji(int czas_min);
 #endif //PARK_ROZRYWKI_PARK_H
 

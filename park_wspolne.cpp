@@ -182,3 +182,9 @@ void error_check(int id, const string& message) {
     }
 }
 
+float oblicz_koszt_restauracji(int czas_min) {
+    if (czas_min == 0) return 0.0f;
+    float koszt = 5.0f + (czas_min / 10) * 2.0f;
+    koszt += random_int(5, 20);
+    return koszt;
+}
