@@ -36,7 +36,7 @@ int   main() {
     g_park->licznik_klientow = licznik_klientow;
     g_park->uruchom_pracownikow();
     g_park->uruchom_kase();
-    //g_park->uruchom_kase_restauracji();
+    g_park->uruchom_kase_restauracji();
     //signal(SIGINT, handler_zamknij_park);
     while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
         usleep(50000);

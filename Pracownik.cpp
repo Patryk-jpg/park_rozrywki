@@ -1,6 +1,4 @@
-//
-// Created by x on 11/12/2025.
-//
+
 
 #include "Pracownik.h"
 

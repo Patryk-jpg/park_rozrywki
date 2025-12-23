@@ -93,9 +93,9 @@ int read_semaphore(int semID, int number) {
 SimTime SimTime::operator+(const SimTime &other) const {
 
         SimTime result;
-        result.minute = minute + other.minute;
-        result.minute %= 60;
-        result.hour = hour + other.hour + result.minute / 60;
+        int total = (hour * 60 + minute) + (other.hour * 60 + other.minute);
+        result.hour = total / 60;
+        result.minute = total % 60;
         if (result.hour >= CZAS_ZAMKNIECIA) {
             result.hour = CZAS_ZAMKNIECIA;
             if (result.minute > 0) {
@@ -139,13 +139,18 @@ void park_wspolne::uruchom_kase() {
 }
 
 void park_wspolne::uruchom_kase_restauracji() {
+    printf("[KASA RESTAURACJI] Uruchamianie PRZED...\n");
 
     pid_t pid = fork();
     if (pid == -1) {
         perror("fork - kasa restauracji");
-        char* args[] = { (char*)"Restauracja", NULL };
+        exit(1);
+    }
+    if (pid == 0) {
+        char* args[] = { (char*)"kasaRestauracji", NULL };
+        execvp("./restauracja",args);
+        perror("execvp - kasa restauracji");
 
-        execvp("./Restauracja",args);
     }
 }
 

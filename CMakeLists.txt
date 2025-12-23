@@ -13,7 +13,9 @@ set(SHARED
 add_executable(park ${SHARED} park.cpp)
 add_executable(klient klient.cpp ${SHARED})
 add_executable(pracownik Pracownik.cpp ${SHARED})
+add_executable(restauracja kasaRestauracji.cpp ${SHARED})
+
 add_executable(Kasa ${SHARED}
         Kasa.cpp)
 
-add_dependencies(park klient pracownik Kasa)
+add_dependencies(park klient pracownik Kasa restauracja)

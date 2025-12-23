@@ -33,7 +33,6 @@
 #define QUEUE_SEED 'Q'
 #define SEM_SEED 'S'
 #define QUEUE_REST_SEED 'R'
-
 #define IPC_ERROR (-1)
 struct Atrakcja {
     int nr;
@@ -66,18 +65,21 @@ struct SimTime {
     void print() const {
         printf("%02d:%02d\n", hour, minute);
     }
+    int toMinutes() const  {
+    return hour * 60 + minute;
+    }
     SimTime operator+(const SimTime& other) const;
     bool operator<=(const SimTime& other) const {
         if (hour < other.hour) return true;
         if (hour == other.hour && minute <= other.minute) return true;
         return false;
     }
-    // operator porównania >=
     bool operator>=(const SimTime& other) const {
         if (hour > other.hour) return true;
         if (hour == other.hour && minute >= other.minute) return true;
         return false;
     }
+
 };
 
 class park_wspolne {
@@ -129,7 +131,7 @@ const Atrakcja atrakcje[17] = {
     {14, "Samochodziki", 2,20, 15, 0, 999, 120, 999, -1, true, false},
     // A16: Przygoda w dżungli
     {15, "Przygoda w dzungli", 9,45, 35, 0, 999, 120, 999, 140, true, false},
-{16, "Restauracja",1, 50, 30, 0, 999, 0, 999, -1, true, false}
+{16, "Restauracja",1, 50, 60, 0, 999, 0, 999, -1, true, false}
 
 };
 
@@ -204,7 +206,12 @@ union semun {
 
 
 #include <random>
-
+struct restauracja_message {
+    long mtype;
+    pid_t pid_klienta;
+    int czas_pobytu_min;
+    float kwota;
+};
 static std::mt19937 rng;
 
 inline void init_random() {

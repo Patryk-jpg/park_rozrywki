@@ -1,6 +1,4 @@
-//
-// Created by janik on 11/12/2025.
-//
+
 #include "park_wspolne.h"
 #include "klient.h"
 
@@ -21,14 +19,14 @@ int main(int argc, char* argv[]) {
 
     init_random();
     g_park = attach_to_shared_block();
-    if (rand()%100 ==1) {
+    if (random_chance(1)) {
         g_klient.czyVIP=true;
     }
     g_klient.wiek = random_int(1, 90);
     g_klient.wzrost = random_int(50, 200);
     g_klient.pidKlienta = getpid();
     g_klient.typ_biletu = random_int(0, 3);
-
+    g_klient.czasWRestauracji = SimTime(0,0);
     /**printf("Klient: %d, wzrost: %d, wiek: %d, utworzono, %02d:%02d\n",
         g_klient.pidKlienta,
         g_klient.wzrost,
@@ -37,8 +35,18 @@ int main(int argc, char* argv[]) {
         g_park->czas_w_symulacji.minute);
         fflush(stdout);
     **/
+    if (random_chance(5)) {
+
+        idz_do_atrakcji(16);
+        if (random_chance(95)) {
+            g_klient.odwiedzone.push_back(16);
+        }
+    }
     wejdz_do_parku();
 
+    if (random_chance(5)) {
+        idz_do_atrakcji(16);
+    }
     detach_from_shared_block(g_park);
 
 }
@@ -94,13 +102,17 @@ void idz_do_atrakcji(int nr_atrakcji) {
     msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, 0);
     if (mes.ack == -1){ return; }
     int moj_wagonik = mes.wagonik;
-    //printf("Klient %d bawi się na %s o godz %02d:%02d \n", g_klient.pidKlienta, atrakcje[nr_atrakcji].nazwa
-    //    ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
+    SimTime czas_rozpoczecia;
+    if (nr_atrakcji == 16) { // Restauracja
+        czas_rozpoczecia = g_park->czas_w_symulacji;
+    }
+    printf("Klient %d bawi się na %s o godz %02d:%02d \n", g_klient.pidKlienta, atrakcje[nr_atrakcji].nazwa
+        ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
     std::vector<int> anulowalne = {1,2,3,4,5,13,14,15,16,17};
     bool czyZrezygnuje = random_chance(10);
-
+    if (nr_atrakcji == 16) {czyZrezygnuje = true;}
     if (contains(anulowalne, nr_atrakcji) && czyZrezygnuje) {
-        SimTime timeout = g_park->czas_w_symulacji + SimTime(0, rand()%atrakcje[nr_atrakcji].czas_trwania_min);
+        SimTime timeout = g_park->czas_w_symulacji + SimTime(0, random_int(5,atrakcje[nr_atrakcji].czas_trwania_min));
 
         while (g_park->czas_w_symulacji <= timeout) {
             int mess = msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, IPC_NOWAIT);
@@ -121,6 +133,19 @@ void idz_do_atrakcji(int nr_atrakcji) {
         printf("Klient wypada z wagoniku i umiera ");
         kill(getpid(), SIGKILL);
     }
+    if (nr_atrakcji == 16) {
+        SimTime czas_zakonczenia = g_park->czas_w_symulacji;
+        SimTime czas_pobytu = SimTime(czas_zakonczenia.hour - czas_rozpoczecia.hour,
+                          czas_zakonczenia.minute - czas_rozpoczecia.minute);
+        g_klient.czasWRestauracji = g_klient.czasWRestauracji + czas_pobytu;
+
+        printf("Klient %d był w restauracja %d minut (łącznie: %d min)\n",
+               g_klient.pidKlienta, czas_pobytu.toMinutes(), g_klient.czasWRestauracji.toMinutes());
+        if (!g_klient.wParku) {
+            zaplac_za_restauracje_z_zewnatrz(czas_pobytu.toMinutes());
+        }
+    }
+
     //printf("Klient %d wyszedł z %s, o godzinie %02d:%02d\n", g_klient.pidKlienta, atrakcje[nr_atrakcji].nazwa
     //     ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
 
@@ -133,11 +158,12 @@ void baw_sie() {
         g_park->czas_w_symulacji.minute < g_klient.czasWyjscia.minute)) {
         int nr_atrakcji =  random_int(0, 16);
 
-        while (contains(g_klient.odwiedzone, nr_atrakcji)) {
-            int nr_atrakcji =  rand() % 17;
+        while (contains(g_klient.odwiedzone, nr_atrakcji) && g_klient.odwiedzone.size() <= 16) {
+            nr_atrakcji =  random_int(0, 16);
+
         }
         idz_do_atrakcji(nr_atrakcji);
-        if (!random_chance(5)) {
+        if (!random_chance(95)) {
             g_klient.odwiedzone.push_back(nr_atrakcji);
 
         }
@@ -153,5 +179,26 @@ void wyjdz_z_parku() {
 
     signal_semaphore(g_park->licznik_klientow, 0);
     printf("Klient %d wychodzi z parku CZAS: %02d:%02d \n", g_klient.pidKlienta, g_park->czas_w_symulacji.hour,g_park->czas_w_symulacji.minute );
+
+}
+void  zaplac_za_restauracje_z_zewnatrz(int czas_pobytu) {
+    printf("Klient %d idzie do kasy w restauracji zaplacic (bez wejścia do parku) o %02d:%02d\n",
+             g_klient.pidKlienta,
+             g_park->czas_w_symulacji.hour,
+             g_park->czas_w_symulacji.minute);
+
+
+    int kasa_rest_id = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED);
+    restauracja_message msg;
+    msg.mtype = 1; // Żądanie płatności
+    msg.pid_klienta = g_klient.pidKlienta;
+    msg.czas_pobytu_min = czas_pobytu;
+    msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
+    msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), g_klient.pidKlienta, 0);
+    printf("Klient %d wychodzi z restauracji, zapłacił %.2f zł o %02d:%02d\n",
+        g_klient.pidKlienta,
+        msg.kwota,
+        g_park->czas_w_symulacji.hour,
+        g_park->czas_w_symulacji.minute);
 
 }

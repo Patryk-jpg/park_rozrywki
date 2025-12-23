@@ -16,14 +16,16 @@ struct klient
     pid_t pidKlienta;
     SimTime czasWejscia;
     SimTime czasWyjscia;
+    SimTime czasWRestauracji;
     int typ_biletu;
     int cena;
-    bool wParku;
+    bool wParku = false;
     std::vector<int> odwiedzone;
 };
 
 void wejdz_do_parku();
 void wyjdz_z_parku();
 void baw_sie();
-
+void idz_do_atrakcji(int nr_atrakcji);
+void zaplac_za_restauracje_z_zewnatrz(int minutes);
 #endif //PARK_ROZRYWKI_KLIENT_H
