@@ -65,15 +65,14 @@ void initialize_semaphore(int semId, int number, int val) {
     }
 }
 
-int wait_semaphore(int semId, int number, int flags, const char* mess) {
+int wait_semaphore(int semId, int number, int flags) {
     int result;
     struct sembuf operacje[1];
     operacje[0].sem_num = number;
     operacje[0].sem_flg = 0  | flags;
     operacje[0].sem_op = -1;
     if (semop(semId, operacje, 1) == -1) {
-        perror(mess);
-
+        perror("semop");
         return -1;
     }
     return 1;

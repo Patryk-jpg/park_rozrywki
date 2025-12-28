@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     struct msqid_ds buf;
     msgctl(kasa_rest_id, IPC_STAT, &buf);
 
-    while (g_park->park_otwarty || buf.msg_qnum > 0) {
+    while (g_park->park_otwarty && buf.msg_qnum > 0) {
         usleep(50000);
         msgctl(kasa_rest_id, IPC_STAT, &buf);
         if (buf.msg_qnum == 0) {continue;}
