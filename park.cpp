@@ -34,6 +34,8 @@ int   main() {
         g_park->pracownicy_keys[i] = create_message_queue(SEED_FILENAME_QUEUE, i);
     }
     g_park->licznik_klientow = licznik_klientow;
+    initialize_semaphore(g_park->licznik_klientow, 0, MAX_KLIENTOW_W_PARKU);
+
     g_park->uruchom_pracownikow();
     g_park->uruchom_kase();
     g_park->uruchom_kase_restauracji();

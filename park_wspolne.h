@@ -145,7 +145,7 @@ int join_message_queue(const char* filename, int seed);
 int allocate_semaphore(key_t key, int number, int flag);
 int free_semaphore(int SemId, int number);
 void initialize_semaphore(int SemId, int number, int val);
-int wait_semaphore(int semId, int number, int flags);
+int wait_semaphore(int semId, int number, int flags, const char* mess);
 void signal_semaphore(int semId, int number);
 int read_semaphore(int semId, int number);
 

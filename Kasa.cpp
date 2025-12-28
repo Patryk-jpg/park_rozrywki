@@ -8,23 +8,16 @@
 park_wspolne* g_park = nullptr;
 
 int update_licznik_klientow(klient_message& request) {
-    bool wpuszczony = true;
     for (int i = 0; i < request.ilosc_osob; i++) {
-        if (wait_semaphore(g_park->licznik_klientow, 0, IPC_NOWAIT) == -1) {
-            wpuszczony = false;
-            break;
-        }
-    }
+        if (wait_semaphore(g_park->licznik_klientow, 0, 0, "kasa.cpp") == -1) {
 
-    if (!wpuszczony || !g_park->park_otwarty) {
-        // cofamy już zajęte miejsca
-        for (int i = 0; i < request.ilosc_osob; i++) {
-            signal_semaphore(g_park->licznik_klientow, 0);
+            for (int j = 0; j < i; j++) {
+                signal_semaphore(g_park->licznik_klientow, 0);
+            }
+            return -1;
         }
-        return -1;
-    } else {
-       return  0;
     }
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -35,7 +28,6 @@ int main(int argc, char *argv[]) {
     g_park = attach_to_shared_block();
     int kasaId = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
     std::map<pid_t, serwer_message> clients_pids;
-    initialize_semaphore(g_park->licznik_klientow, 0, MAX_KLIENTOW_W_PARKU);
     while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
 
         klient_message request{};
