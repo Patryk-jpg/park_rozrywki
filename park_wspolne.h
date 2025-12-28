@@ -1,8 +1,8 @@
 //
 // Created by janik on 11/12/2025.
 //
-#ifndef PARK_ROZRYWKI_PARK_H
-#define PARK_ROZRYWKI_PARK_H
+#pragma once
+
 #include <ctime>
 #include <string>
 #include <csignal>
@@ -45,6 +45,7 @@ struct Atrakcja {
     int min_wzrost;
     int max_wzrost;
     int wiek_wymaga_opiekuna;
+    int wzrost_wymaga_opiekuna;
     bool mozna_opuscic;
     bool sezonowa_letnia;
 };
@@ -100,38 +101,38 @@ class park_wspolne {
 
 const Atrakcja atrakcje[17] = {
     // A1: Wodna bitwa
-    {0, "Wodna bitwa", 20,20, 30, 0, 999, 120, 999, 120, true, true},
+    {0, "Wodna bitwa", 20,20, 30, 0, 999, 120, 999, -1,140, true, true},
     // A2: Magiczna pompa
-    {1, "Magiczna pompa", 12,12, 30, 0, 999, 100, 999, 120, true, true},
+    {1, "Magiczna pompa", 12,12, 30, 0, 999, 100, 999, -1,120, true, true},
     // A3: Wyprawa do groty
-    {2, "Wyprawa do groty",16, 16, 25, 2, 13, 120, 999, 13, true, true},
+    {2, "Wyprawa do groty",16, 16, 25, 2, 13, 120, 999, 13, -1,true, true},
     // A4: Zatoka bambusowa
-    {3, "Zatoka bambusowa", 18,18, 35, 0, 999, 110, 999, 135, true, true},
+    {3, "Zatoka bambusowa", 18,18, 35, 0, 999, 110, 999, -1,135, true, true},
     // A5: Smocza przygoda
-    {4, "Smocza przygoda",14, 14, 20, 2, 13, 130, 999, 13, true, false},
+    {4, "Smocza przygoda",14, 14, 20, 2, 13, 130, 999, 13,-1, true, false},
     // A6: Cudowne koło
-    {5, "Cudowne kolo", 8,8, 20, 0, 13, 120, 999, 13, false, false},
+    {5, "Cudowne kolo", 8,8, 20, 0, 13, 120, 999, 13,-1,false, false},
     // A7: Karuzela
-    {6, "Karuzela",12, 12, 15, 2, 13, 130, 190, 13, false, false},
+    {6, "Karuzela",12, 12, 15, 2, 13, 130, 190, 13, -1, false, false},
     // A8: Kolejka mała
-    {7, "Kolejka mala", 24,24, 15, 0, 999, 100, 999, 120, false, false},
+    {7, "Kolejka mala", 24,24, 15, 0, 999, 100, 999, -1, -1, false, false},
     // A9: Kolejka górska
-    {8, "Kolejka gorska", 4,20, 35, 4, 12, 120, 999, 12, false, false},
+    {8, "Kolejka gorska", 4,20, 35, 4, 12, 120, 999, 12, -1, false, false},
     // A10: Kolejka smocza
-    {9, "Kolejka smocza", 20,20, 30, 4, 13, 120, 999, 13, false, false},
+    {9, "Kolejka smocza", 20,20, 30, 4, 13, 120, 999, -1, -1, false, false},
     // A11: Mega Roller Coaster
-    {10, "Mega Roller Coaster", 24,24, 30, 0, 999, 140, 195, -1, false, false},
+    {10, "Mega Roller Coaster", 24,24, 30, 0, 999, 140, 195, -1, -1, false, false},
     // A12: Ławka obrotowa
-    {11, "Lawka obrotowa", 18,18, 25, 0, 999, 140, 195, -1, false, false},
+    {11, "Lawka obrotowa", 18,18, 25, 0, 999, 140, 195, -1, -1,false, false},
     // A13: Kosmiczny wzmacniacz
-    {12, "Kosmiczny wzmacniacz", 4,8, 20, 0, 999, 140, 195, -1, true, false},
+    {12, "Kosmiczny wzmacniacz", 4,8, 20, 0, 999, 140, 195, -1, -1,true, false},
     // A14: Dom potwora
-    {13, "Dom potwora", 4,12, 20, 4, 12, 130, 999, 12, true, false},
+    {13, "Dom potwora", 4,12, 20, 4, 12, 130, 999, 12,-1, true, false},
     // A15: Samochodziki
-    {14, "Samochodziki", 2,20, 15, 0, 999, 120, 999, -1, true, false},
+    {14, "Samochodziki", 2,20, 15, 0, 999, 120, 999, -1, -1,true, false},
     // A16: Przygoda w dżungli
-    {15, "Przygoda w dzungli", 9,45, 35, 0, 999, 120, 999, 140, true, false},
-{16, "Restauracja",1, 50, 60, 0, 999, 0, 999, -1, true, false}
+    {15, "Przygoda w dzungli", 9,45, 35, 0, 999, 120, 195, -1,140, true, false},
+{16, "Restauracja",1, 50, 60, 0, 999, 0, 999, -1,-1, true, false}
 
 };
 
@@ -165,6 +166,7 @@ struct klient_message{
     long mtype;
     int typ_biletu;
     int ilosc_biletow;
+    int ilosc_osob;
     pid_t pid_klienta;
 };
 
@@ -175,12 +177,14 @@ struct serwer_message {
     float cena;
     int typ_biletu;
     int status;
+    int ilosc_osob;
 };
 struct payment_message {
     long mtype;
     pid_t pid;
     int czasWRestauracji;
     float suma;
+    int wiekDziecka;
 
 };
 struct biletInfo {
@@ -193,6 +197,7 @@ struct ACKmes {
     long mtype;
     int ack;
     int wagonik;
+    int ilosc_osob;
 };
 
 const biletInfo bilety[5] = {
@@ -235,5 +240,3 @@ inline bool random_chance(int percent) {
     return random_int(0, 99) < percent;
 }
 float oblicz_koszt_restauracji(int czas_min);
-#endif //PARK_ROZRYWKI_PARK_H
-

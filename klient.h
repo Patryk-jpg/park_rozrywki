@@ -3,13 +3,14 @@
 //
 #pragma once
 
-#ifndef PARK_ROZRYWKI_KLIENT_H
-#define PARK_ROZRYWKI_KLIENT_H
 #include "park_wspolne.h"
-
-struct klient
-{
-    public:
+struct dziecko {
+    int wiek;
+    int wzrost;
+    float czasWRestauracji;
+};
+struct klient {
+public:
     int wiek;
     int wzrost;
     bool czyVIP;
@@ -21,11 +22,14 @@ struct klient
     int cena;
     bool wParku = false;
     std::vector<int> odwiedzone;
+    bool ma_dziecko = false;
+    dziecko* dzieckoInfo;
+    int ilosc_osob;
 };
+bool spelniaWymagania(int nr_atrakcji);
 
 void wejdz_do_parku();
 void wyjdz_z_parku();
 void baw_sie();
-void idz_do_atrakcji(int nr_atrakcji);
+int idz_do_atrakcji(int nr_atrakcji, pid_t identifier);
 void zaplac_za_restauracje_z_zewnatrz(int minutes);
-#endif //PARK_ROZRYWKI_KLIENT_H

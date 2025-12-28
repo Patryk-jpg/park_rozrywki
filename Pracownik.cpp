@@ -49,7 +49,9 @@ int main(int argc, char* argv[]) {
             while (msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 99, IPC_NOWAIT) != -1) {
                 auto it = std::find(czasyJazdy[mes.wagonik].pids.begin(),
                     czasyJazdy[mes.wagonik].pids.end(), mes.ack);
-                czasyJazdy[mes.wagonik].pids.erase(it);
+                if (it != czasyJazdy[mes.wagonik].pids.end()) {
+                    czasyJazdy[mes.wagonik].pids.erase(it);
+                }
                 mes.mtype = mes.ack;
                 msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0); //potwierdzenie
                 printf("Klient %d zrezygnowal z %s w wagoniku %d\n", mes.ack, atrakcje[nr_atrakcji].nazwa, mes.wagonik);
@@ -77,22 +79,30 @@ int main(int argc, char* argv[]) {
         int freeCart = znajdzWolnyWagonik(czasyJazdy, iloscWagonikow);
         msgctl(wejscieDoAtrakcji, IPC_STAT, &buf);
 
-        if (freeCart != -1 && buf.msg_qnum > 0) {
+        if (freeCart != -1) {
             czasy nowa_jazda;
-            int countPeople = atrakcje[nr_atrakcji].po_ile_osob_wchodzi;
-            while (countPeople > 0 && msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 100, IPC_NOWAIT) != -1) {
+            int wolne_miejsca = atrakcje[nr_atrakcji].po_ile_osob_wchodzi;
+            while (wolne_miejsca > 0 && msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 100, IPC_NOWAIT) != -1) {
                 mes.mtype = mes.ack;
                 mes.wagonik = freeCart;
+                if (mes.ilosc_osob <= wolne_miejsca) {
+                    nowa_jazda.pids.push_back(mes.ack);
+                    wolne_miejsca -= mes.ilosc_osob;
+                }
+                else {
+                    mes.ack = -1;
+                }
                 msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0);
-                nowa_jazda.pids.push_back(mes.ack);
-                countPeople--;
+
             }
             if (nowa_jazda.pids.empty()) {continue;}
             nowa_jazda.czasJazdy = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute) + SimTime(0,atrakcje[nr_atrakcji].czas_trwania_min);
             nowa_jazda.zajete = true;
             czasyJazdy[freeCart] = nowa_jazda;
-            printf("Pracownik-%d rozpoczyna atrakcje %s, o godzinie %02d:%02d| Ilosc osob: %d | wagon %d\n", nr_atrakcji, atrakcje[nr_atrakcji].nazwa
-        ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute, (int)nowa_jazda.pids.size(), freeCart);
+            int zajete = atrakcje[nr_atrakcji].po_ile_osob_wchodzi - wolne_miejsca;
+
+            printf("Pracownik-%d rozpoczyna atrakcje %s, o godzinie %02d:%02d| Ilosc osob: %d | grup %d | wagon %d\n", nr_atrakcji, atrakcje[nr_atrakcji].nazwa
+        ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute,zajete, (int)nowa_jazda.pids.size(), freeCart);
             fflush(stdout);
 
         }
