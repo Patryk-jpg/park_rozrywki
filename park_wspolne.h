@@ -92,7 +92,6 @@ class park_wspolne {
     int licznik_klientow;
     int pracownicy_keys[17];
 
-    void uruchom_pracownikow();
     void uruchom_kase();
     void uruchom_kase_restauracji();
 };

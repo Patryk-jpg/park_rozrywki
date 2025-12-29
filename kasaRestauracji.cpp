@@ -1,6 +1,4 @@
-//
-// Created by janik on 23/12/2025.
-//
+
 
 #include "kasaRestauracji.h"
 
@@ -19,7 +17,7 @@ int main(int argc, char* argv[]) {
     struct msqid_ds buf;
     msgctl(kasa_rest_id, IPC_STAT, &buf);
 
-    while (g_park->park_otwarty && buf.msg_qnum > 0) {
+    while (g_park->park_otwarty || buf.msg_qnum > 0) {
         usleep(50000);
         msgctl(kasa_rest_id, IPC_STAT, &buf);
         if (buf.msg_qnum == 0) {continue;}
@@ -39,8 +37,23 @@ int main(int argc, char* argv[]) {
         msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
     }
 
-    msgctl(kasa_rest_id, IPC_RMID, NULL);
+    printf("\n[KASA RESTAURACJI] Zamykam kasę\n");
+    printf("========================================\n");
+    printf("Podsumowanie dnia:\n");
+    printf("Liczba transakcji: %d\n", licznik_transakcji);
+    printf("Suma przychodów:   %.2f zł\n", suma_przychodow);
+    if (licznik_transakcji > 0) {
+        printf("Średnia wartość:   %.2f zł\n", suma_przychodow / licznik_transakcji);
+    }
+    printf("========================================\n");
+    fflush(stdout);
+
+    if (msgctl(kasa_rest_id, IPC_RMID, NULL) == -1) {
+        perror("msgctl IPC_RMID restauracja");
+    }
 
     detach_from_shared_block(g_park);
+
+    printf("Zakończono kase restauracji (PID: %d)\n", getpid());
     return 0;
 }

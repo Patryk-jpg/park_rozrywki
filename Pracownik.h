@@ -9,6 +9,3 @@ struct czasy {
     std::vector<pid_t> pids;
     bool zajete;
 };
-bool ewakuacja = false;
-
-bool zatrzymano = false;

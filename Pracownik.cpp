@@ -1,15 +1,17 @@
 
 #include "Pracownik.h"
 
+static volatile sig_atomic_t ewakuacja = 0;
+static volatile sig_atomic_t zatrzymano = 0;
 
 void sig1handler(int sig) {
     printf("Otrzymano sygnal zatrzymania atrakcji sygnał %d!\n", sig);
-   ewakuacja =  true;
+   ewakuacja =  1;
 }
 
 void sig2handler(int sig) {
     printf("Otrzymano sygnal ponownego uruchomienia atrakcji sygnał %d!\n", sig);
-    zatrzymano = false;
+    zatrzymano = 0;
 }
 
 
@@ -22,8 +24,8 @@ int znajdzWolnyWagonik(czasy czasyJazdy[], int iloscWagonikow) {
 }
 int main(int argc, char* argv[]) {
 
-    // signal(SIGUSR1, sig1handler);
-    // signal(SIGUSR2, sig2handler);
+    signal(SIGUSR1, sig1handler);
+    signal(SIGUSR2, sig2handler);
     if (argc < 2) {
         fprintf(stderr, "Brak numeru atrakcji!\n");
         return 1;
@@ -65,13 +67,17 @@ int main(int argc, char* argv[]) {
             zatrzymano = true;
             ewakuacja = false;
         }
-        if (zatrzymano) {
-            usleep(10000);
-            continue;
-        }
-        SimTime curTime = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
 
+        SimTime curTime = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
             while (msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 99, IPC_NOWAIT) != -1) {
+                if (zatrzymano) {
+                    mes.mtype = mes.ack;
+                    mes.ack = -2;
+                    msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0); //potwierdzenie
+                    printf("Wyrzucam z kolejki w atrakcji %d", nr_atrakcji);
+                    usleep(10000);
+                    continue;
+                }
                 auto it = std::find(czasyJazdy[mes.wagonik].pids.begin(),
                     czasyJazdy[mes.wagonik].pids.end(), mes.ack);
                 if (it != czasyJazdy[mes.wagonik].pids.end()) {
@@ -106,6 +112,9 @@ int main(int argc, char* argv[]) {
 
         if (freeCart != -1) {
             czasy nowa_jazda;
+            nowa_jazda.pids.clear();
+            nowa_jazda.zajete = false;
+            nowa_jazda.czasJazdy = SimTime(0, 0);
             int wolne_miejsca = atrakcje[nr_atrakcji].po_ile_osob_wchodzi;
             while (wolne_miejsca > 0 && msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 100, IPC_NOWAIT) != -1) {
                 mes.mtype = mes.ack;
@@ -113,6 +122,7 @@ int main(int argc, char* argv[]) {
                 if (mes.ilosc_osob <= wolne_miejsca) {
                     nowa_jazda.pids.push_back(mes.ack);
                     wolne_miejsca -= mes.ilosc_osob;
+                    mes.ack = 0;
                 }
                 else {
                     mes.ack = -1;

@@ -106,25 +106,7 @@ SimTime SimTime::operator+(const SimTime &other) const {
 
 }
 
-void park_wspolne::uruchom_pracownikow() {
 
-    for (int i=0; i < 17; i++) {
-        pid_t pid = fork();
-        if (pid == -1) {
-            perror("fork - pracownik");
-            exit(1);
-        }
-        if (pid == 0) {
-            char arg[16];
-            snprintf(arg, sizeof(arg), "%d", i);
-            char* args[] = { (char*)"pracownik", arg, NULL };
-            execvp("./pracownik",args);
-            perror("execvp-pracownik");
-            _exit(1);
-        }
-    }
-
-}
 void park_wspolne::uruchom_kase() {
     pid_t pid = fork();
     if (pid == -1) {

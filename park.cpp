@@ -3,15 +3,73 @@
 //
 #include "park_wspolne.h"
 #include <sys/wait.h>
-
 park_wspolne* g_park = nullptr;
-// void sig3handler(int sig) {
-//     printf("Otrzymano sygnal totalnej ewakuacji i zamkniecia (3) sygnał %d!\n", sig);
-//     zatrzymano = false;
-// }
+std::vector<pid_t> pracownicy_pids;
+static volatile sig_atomic_t signal3 = 0;
 
+
+void uruchom_pracownikow() {
+
+    for (int i=0; i < 17; i++) {
+        pid_t pid = fork();
+        if (pid == -1) {
+            perror("fork - pracownik");
+            exit(1);
+        }
+        if (pid == 0) {
+            char arg[16];
+            snprintf(arg, sizeof(arg), "%d", i);
+
+            char* args[] = { (char*)"pracownik", arg, NULL };
+            execvp("./pracownik",args);
+            perror("execvp-pracownik");
+            _exit(1);
+        }
+
+        pracownicy_pids.push_back(pid);
+
+
+    }
+
+}
+
+void sig3handler(int sig) {
+    printf("Otrzymano sygnal totalnej ewakuacji i zamkniecia (3) sygnał %d!\n", sig);
+    signal3 = 1;
+
+}
+void zakoncz_pracownikow() {
+    printf("[PARK] Wysylam sygnały SIGUSR1 do pracownikow...\n");
+    for (auto pid : pracownicy_pids) {
+        if (kill(pid, SIGUSR1) == -1) {
+            perror("kill SIGUSR1");
+        }
+    }
+
+    printf("[PARK] Czekam na zakonczenie pracowników...\n");
+    for (size_t i = 0; i < pracownicy_pids.size(); i++) {
+        int status;
+        pid_t pid = waitpid(pracownicy_pids[i], &status, 0);
+        if (pid > 0) {
+            printf("[PARK] Pracownik %zu (PID: %d) zakonczył pracę\n", i, pid);
+        }
+    }
+}
+void zbierz_zombie_procesy() {
+    int status;
+    while (waitpid(-1, &status, WNOHANG) > 0);
+}
 int   main() {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = sig3handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
 
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        perror("sigaction SIGINT");
+        exit(1);
+    }
     printf("========================================\n");
     printf("   PARK ROZRYWKI - SYMULACJA          \n");
     printf("========================================\n\n");
@@ -34,16 +92,20 @@ int   main() {
     g_park->czas_w_symulacji.minute = 0;
     int sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED);
     int licznik_klientow = allocate_semaphore(sem_key, 1, 0666| IPC_CREAT | IPC_EXCL);
-    int pracownicy_ftok_key = ftok(SEED_FILENAME_SEMAPHORES, 244);
     for (int i = 0; i < (sizeof(atrakcje) / sizeof(atrakcje[0]))-1; i++) {
         g_park->pracownicy_keys[i] = create_message_queue(SEED_FILENAME_QUEUE, i);
     }
     g_park->licznik_klientow = licznik_klientow;
-    g_park->uruchom_pracownikow();
+    uruchom_pracownikow();
     g_park->uruchom_kase();
     g_park->uruchom_kase_restauracji();
-    //signal(SIGINT, handler_zamknij_park);
     while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
+        if (signal3) {
+            printf("\n[PARK] *** EWAKUACJA - ZAMYKAM PARK ***\n");
+            g_park->park_otwarty = false;
+            zakoncz_pracownikow();
+            break;
+        }
         usleep(50000);
         g_park->czas_w_symulacji.increment_minute();
         //g_park->czas_w_symulacji.print();

@@ -118,8 +118,8 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
     //    ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
 
     msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), identifier, 0);
-    if (mes.ack == -1) {
-        return -1;
+    if (mes.ack == -1 || mes.ack == -2) {
+        return mes.ack;
     }
     int moj_wagonik = mes.wagonik;
     SimTime czas_rozpoczecia;
@@ -136,7 +136,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
 
         while (g_park->czas_w_symulacji <= timeout) {
             int mess = msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), identifier, IPC_NOWAIT);
-            if (mess != -1) {break;}
+            if (mess != -1) {return -2;}
             usleep(10000);
 
         }
@@ -155,10 +155,13 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
     }
     if (nr_atrakcji == 16) {
         SimTime czas_zakonczenia = g_park->czas_w_symulacji;
-        SimTime czas_pobytu = SimTime(czas_zakonczenia.hour - czas_rozpoczecia.hour,
-                          czas_zakonczenia.minute - czas_rozpoczecia.minute);
-        g_klient.czasWRestauracji = g_klient.czasWRestauracji + czas_pobytu;
-
+        int delta_hour = czas_zakonczenia.hour - czas_rozpoczecia.hour;
+        int delta_min = czas_zakonczenia.minute - czas_rozpoczecia.minute;
+        if (delta_min < 0) {
+            delta_hour--;
+            delta_min += 60;
+        }
+        SimTime czas_pobytu = SimTime(delta_hour, delta_min);
         printf("Klient %d był w restauracja %d minut (łącznie: %d min)\n",
                identifier, czas_pobytu.toMinutes(), g_klient.czasWRestauracji.toMinutes());
         if (!g_klient.wParku) {
@@ -174,18 +177,30 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
 
 
 void baw_sie() {
+    if (!g_park->park_otwarty) {
+        wyjdz_z_parku();
+        return;
+    }
     while (g_park->czas_w_symulacji.hour < g_klient.czasWyjscia.hour ||
        (g_park->czas_w_symulacji.hour == g_klient.czasWyjscia.hour &&
         g_park->czas_w_symulacji.minute < g_klient.czasWyjscia.minute)) {
+
+        if (!g_park->park_otwarty) {
+            wyjdz_z_parku();
+            return;
+        }
         int nr_atrakcji =  random_int(0, 16);
 
-        while (contains(g_klient.odwiedzone, nr_atrakcji) && g_klient.odwiedzone.size() <= 16 && spelniaWymagania(nr_atrakcji)) {
+        while (contains(g_klient.odwiedzone, nr_atrakcji) && g_klient.odwiedzone.size() < 17 && !spelniaWymagania(nr_atrakcji)) {
             nr_atrakcji =  random_int(0, 16);
 
         }
         int status = idz_do_atrakcji(nr_atrakcji, g_klient.pidKlienta);
         if (status == -1) {
             g_klient.odwiedzone.push_back(nr_atrakcji);
+        }
+        if (status == -2) {
+            continue;
         }
         if (!random_chance(95)) {
             g_klient.odwiedzone.push_back(nr_atrakcji);
