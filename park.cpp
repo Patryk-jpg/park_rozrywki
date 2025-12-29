@@ -156,8 +156,8 @@ int   main() {
     while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
         if (signal3) {
             printf("\n[PARK] *** EWAKUACJA - ZAMYKAM PARK ***\n");
-            g_park->park_otwarty = false;
             zakoncz_pracownikow();
+            g_park->park_otwarty = false;
             break;
         }
         usleep(50000);
