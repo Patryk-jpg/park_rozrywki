@@ -146,6 +146,7 @@ int main(int argc, char* argv[]) {
 
         }
     fflush(stdout);
+    detach_from_shared_block(g_park);
     _exit(0);
     }
 

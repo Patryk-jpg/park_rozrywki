@@ -108,10 +108,24 @@ int main(int argc, char *argv[]) {
 
 
     }
+    printf("\n[KASA] Zamykam kasę\n");
+    printf("========================================\n");
+    printf("Podsumowanie dnia:\n");
+    printf("Liczba transakcji: %d\n", transakcje);
+    printf("Suma zarobków:     %.2f zł\n", zarobki);
+    if (transakcje > 0) {
+        printf("Średnia wartość:   %.2f zł\n", zarobki / transakcje);
+    }
+    printf("========================================\n");
     fflush(stdout);
+
     usleep(10000);
 
-    msgctl(kasaId, IPC_RMID, NULL);
+    if (msgctl(kasaId, IPC_RMID, NULL) == -1) {
+        perror("msgctl IPC_RMID kasa");
+    }
+
     detach_from_shared_block(g_park);
+    return 0;
 
 }

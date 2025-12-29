@@ -38,7 +38,7 @@ bool detach_from_shared_block(park_wspolne *block) {
 bool destroy_shared_block(char *filename) {
         int shared_block_id = get_shared_block_id();
         if (shared_block_id == IPC_ERROR) {
-            return NULL;
+            return false;
         }
     return shmctl(shared_block_id, IPC_RMID, NULL) != IPC_ERROR;
 }
@@ -107,41 +107,10 @@ SimTime SimTime::operator+(const SimTime &other) const {
 }
 
 
-void park_wspolne::uruchom_kase() {
-    pid_t pid = fork();
-    if (pid == -1) {
-        perror("fork - kasa");
-        exit(1);
-    }
-    if (pid==0) {
-        char* args[] = { (char*)"Kasa", NULL };
-        execvp("./Kasa", args);
-    }
-
-}
-
-void park_wspolne::uruchom_kase_restauracji() {
-    printf("[KASA RESTAURACJI] Uruchamianie PRZED...\n");
-
-    pid_t pid = fork();
-    if (pid == -1) {
-        perror("fork - kasa restauracji");
-        exit(1);
-    }
-    if (pid == 0) {
-        char* args[] = { (char*)"kasaRestauracji", NULL };
-        execvp("./restauracja",args);
-        perror("execvp - kasa restauracji");
-
-    }
-}
 
 
-void handler_zamknij_park(int sig) {
 
-    printf("zamknij_park\n");
-    _exit(sig);
-}
+
 
 int create_message_queue(const char* filename, int seed) {
     key_t key = ftok(filename, seed);

@@ -1,13 +1,66 @@
-//
-// Created by janik on 12/12/2025.
-//
+
 #include "park_wspolne.h"
 #include <sys/wait.h>
 park_wspolne* g_park = nullptr;
 std::vector<pid_t> pracownicy_pids;
+pid_t kasa_pid = -1;
+pid_t kasa_rest_pid = -1;
 static volatile sig_atomic_t signal3 = 0;
 
+void poczekaj_na_kasy() {
+    printf("[PARK] Czekam na zakończenie kas...\n");
 
+    if (kasa_pid > 0) {
+        int status;
+        printf("[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
+        pid_t result = waitpid(kasa_pid, &status, 0);
+        if (result > 0) {
+            printf("[PARK] Kasa główna zakończona\n");
+        } else {
+            perror("waitpid kasa");
+        }
+    }
+
+    if (kasa_rest_pid > 0) {
+        int status;
+        printf("[PARK] Czekam na kasę restauracji (PID: %d)...\n", kasa_rest_pid);
+        pid_t result = waitpid(kasa_rest_pid, &status, 0);
+        if (result > 0) {
+            printf("[PARK] Kasa restauracji zakończona\n");
+        } else {
+            perror("waitpid kasa restauracji");
+        }
+    }
+}
+void uruchom_kase() {
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("fork - kasa");
+        exit(1);
+    }
+    if (pid == 0) {
+        char* args[] = { (char*)"Kasa", NULL };
+        execvp("./Kasa", args);
+        perror("execvp - kasa");
+        _exit(1);
+    }
+    kasa_pid = pid;
+}
+void uruchom_kase_restauracji() {
+    printf("[PARK] Uruchamianie kasy restauracji...\n");
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("fork - kasa restauracji");
+        exit(1);
+    }
+    if (pid == 0) {
+        char* args[] = { (char*)"kasaRestauracji", NULL };
+        execvp("./restauracja", args);
+        perror("execvp - kasa restauracji");
+        _exit(1);
+    }
+    kasa_rest_pid = pid;
+}
 void uruchom_pracownikow() {
 
     for (int i=0; i < 17; i++) {
@@ -54,6 +107,7 @@ void zakoncz_pracownikow() {
             printf("[PARK] Pracownik %zu (PID: %d) zakonczył pracę\n", i, pid);
         }
     }
+
 }
 void zbierz_zombie_procesy() {
     int status;
@@ -97,8 +151,8 @@ int   main() {
     }
     g_park->licznik_klientow = licznik_klientow;
     uruchom_pracownikow();
-    g_park->uruchom_kase();
-    g_park->uruchom_kase_restauracji();
+    uruchom_kase();
+    uruchom_kase_restauracji();
     while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
         if (signal3) {
             printf("\n[PARK] *** EWAKUACJA - ZAMYKAM PARK ***\n");
@@ -126,9 +180,26 @@ int   main() {
             }
         }
     }
+
+    if (!signal3) {
+        zakoncz_pracownikow();
+
+    }
+    poczekaj_na_kasy();
+    for (auto kolejka_id: g_park->pracownicy_keys) {
+        if (msgctl(kolejka_id, IPC_RMID, NULL) == -1) {
+            perror("msgctl IPC_RMID pracownicy msqueue");
+        }
+    }
+    printf("[PARK] Zbieranie pozostałych procesów...\n");
+    int status;
+    while (wait(&status) > 0) {
+    }
     printf("PARK ZAMKNIETY");
+    printf("Sprzątanie zasobów...\n");
     free_semaphore(g_park->licznik_klientow, 0);
     detach_from_shared_block(g_park);
     destroy_shared_block((char*)SEED_FILENAME_PARK);
-
+    printf(" Koniec symulacji\n");
+    return 0;
 }
