@@ -5,8 +5,13 @@
 #include <sys/wait.h>
 
 park_wspolne* g_park = nullptr;
+// void sig3handler(int sig) {
+//     printf("Otrzymano sygnal totalnej ewakuacji i zamkniecia (3) sygnał %d!\n", sig);
+//     zatrzymano = false;
+// }
 
 int   main() {
+
     printf("========================================\n");
     printf("   PARK ROZRYWKI - SYMULACJA          \n");
     printf("========================================\n\n");
@@ -42,9 +47,9 @@ int   main() {
         usleep(50000);
         g_park->czas_w_symulacji.increment_minute();
         //g_park->czas_w_symulacji.print();
-        //printf("Aktualni ludzie w parku %d, \n", MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0));
+        printf("Aktualni ludzie w parku %d, \n", MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0));
         fflush(stdout);
-        if (g_park->czas_w_symulacji.hour == CZAS_ZAMKNIECIA) {
+        if (g_park->czas_w_symulacji.hour >= CZAS_ZAMKNIECIA) {
 
             g_park->park_otwarty = false;
         }

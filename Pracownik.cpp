@@ -1,23 +1,29 @@
 
-
 #include "Pracownik.h"
 
-#include <algorithm>
-#include <park_wspolne.h>
-#include <cstdio>
-#include <unistd.h>
-struct czasy {
-    SimTime czasJazdy;
-    std::vector<pid_t> pids;
-    bool zajete;
-};
+
+void sig1handler(int sig) {
+    printf("Otrzymano sygnal zatrzymania atrakcji sygnał %d!\n", sig);
+   ewakuacja =  true;
+}
+
+void sig2handler(int sig) {
+    printf("Otrzymano sygnal ponownego uruchomienia atrakcji sygnał %d!\n", sig);
+    zatrzymano = false;
+}
+
+
 int znajdzWolnyWagonik(czasy czasyJazdy[], int iloscWagonikow) {
     for (int i = 0; i < iloscWagonikow; i++) {
         if (czasyJazdy[i].zajete == false) return i;
     }
+
     return -1;
 }
 int main(int argc, char* argv[]) {
+
+    // signal(SIGUSR1, sig1handler);
+    // signal(SIGUSR2, sig2handler);
     if (argc < 2) {
         fprintf(stderr, "Brak numeru atrakcji!\n");
         return 1;
@@ -35,7 +41,6 @@ int main(int argc, char* argv[]) {
     ACKmes mes;
     int wejscieDoAtrakcji = g_park->pracownicy_keys[nr_atrakcji];
     int iloscWagonikow = atrakcje[nr_atrakcji].limit_osob/ atrakcje[nr_atrakcji].po_ile_osob_wchodzi;
-
     czasy czasyJazdy[iloscWagonikow];
     for (int i = 0; i < iloscWagonikow; i++) {
         czasyJazdy[i].czasJazdy = SimTime(0, 0);
@@ -43,7 +48,27 @@ int main(int argc, char* argv[]) {
 
     }
 
-    while (g_park->park_otwarty) {
+    while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
+        if (ewakuacja) {
+            for (int i = 0; i < iloscWagonikow; i++) {
+                if (czasyJazdy[i].zajete) {
+                    for (auto pid : czasyJazdy[i].pids) {
+                        ACKmes mes;
+                        mes.mtype = pid;
+                        mes.ack = 0;
+                        msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0);
+                    }
+                    czasyJazdy[i].pids.clear();
+                    czasyJazdy[i].zajete = false;
+                }
+            }
+            zatrzymano = true;
+            ewakuacja = false;
+        }
+        if (zatrzymano) {
+            usleep(10000);
+            continue;
+        }
         SimTime curTime = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
 
             while (msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 99, IPC_NOWAIT) != -1) {

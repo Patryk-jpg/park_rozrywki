@@ -1,13 +1,14 @@
-//
-// Created by janik on 11/12/2025.
-//
+#pragma once
 
-#ifndef PARK_ROZRYWKI_PRACOWNIK_H
-#define PARK_ROZRYWKI_PRACOWNIK_H
-
-
-class Pracownik {
+#include <algorithm>
+#include <park_wspolne.h>
+#include <cstdio>
+#include <unistd.h>
+struct czasy {
+    SimTime czasJazdy;
+    std::vector<pid_t> pids;
+    bool zajete;
 };
+bool ewakuacja = false;
 
-
-#endif //PARK_ROZRYWKI_PRACOWNIK_H
+bool zatrzymano = false;

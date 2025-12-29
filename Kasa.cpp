@@ -8,26 +8,26 @@
 park_wspolne* g_park = nullptr;
 
 int update_licznik_klientow(klient_message& request) {
-    bool wpuszczony = true;
+    int zajete = 0;
     for (int i = 0; i < request.ilosc_osob; i++) {
         if (wait_semaphore(g_park->licznik_klientow, 0, IPC_NOWAIT) == -1) {
-            wpuszczony = false;
             break;
         }
+        zajete++;
     }
 
-    if (!wpuszczony || !g_park->park_otwarty) {
-        // cofamy już zajęte miejsca
-        for (int i = 0; i < request.ilosc_osob; i++) {
+    if (zajete < request.ilosc_osob || !g_park->park_otwarty) {
+        for (int i = 0; i < zajete; i++) {
             signal_semaphore(g_park->licznik_klientow, 0);
         }
         return -1;
-    } else {
+    }else {
        return  0;
     }
 }
 
 int main(int argc, char *argv[]) {
+
     float zarobki = 0.0f;
     int transakcje = 0;
     printf("KASA CZYNNA  PID: %d", getpid() );
@@ -83,6 +83,7 @@ int main(int argc, char *argv[]) {
 
             clients_pids.erase(payment_request.pid);
 
+
         }
 
         size_t n = msgrcv(kasaId, &request, sizeof(request) - sizeof(long), -10, IPC_NOWAIT);
@@ -104,7 +105,12 @@ int main(int argc, char *argv[]) {
         }
         msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
 
+
+
     }
+    fflush(stdout);
+    usleep(10000);
+
     msgctl(kasaId, IPC_RMID, NULL);
     detach_from_shared_block(g_park);
 
