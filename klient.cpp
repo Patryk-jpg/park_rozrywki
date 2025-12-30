@@ -17,6 +17,7 @@ bool contains(const std::vector<int>& lista, int val) {
     return false;
 }
 int main(int argc, char* argv[]) {
+    //signal(SIGINT, SIG_IGN);
 
     init_random();
     g_park = attach_to_shared_block();
@@ -65,13 +66,17 @@ int main(int argc, char* argv[]) {
         g_klient.dzieckoInfo = nullptr;
     }
     detach_from_shared_block(g_park);
-
+    _exit(0);
 }
 void wejdz_do_parku() {
 
     klient_message k_msg{};
     serwer_message reply;
     int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
+    if (kasaId == -1) {
+        printf("Kasa zamknięta, klient %d nie wchodzi\n", g_klient.pidKlienta);
+        return;
+    }
     typ_biletu bilet;
     k_msg.mtype = 5;
     k_msg.ilosc_osob = g_klient.ilosc_osob;
@@ -136,7 +141,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
 
         while (g_park->czas_w_symulacji <= timeout) {
             int mess = msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), identifier, IPC_NOWAIT);
-            if (mess != -1) {return -2;}
+            if (mess != -1) {return mes.ack;}
             usleep(10000);
 
         }

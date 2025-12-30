@@ -26,6 +26,8 @@ int main(int argc, char* argv[]) {
 
     signal(SIGUSR1, sig1handler);
     signal(SIGUSR2, sig2handler);
+    //signal(SIGINT, SIG_IGN);
+
     if (argc < 2) {
         fprintf(stderr, "Brak numeru atrakcji!\n");
         return 1;
@@ -153,7 +155,9 @@ int main(int argc, char* argv[]) {
         usleep(10000);
 
         }
+    printf("Pracownik zkonczyl prace /n");
     fflush(stdout);
+
     detach_from_shared_block(g_park);
     _exit(0);
     }

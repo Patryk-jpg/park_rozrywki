@@ -27,20 +27,25 @@ int update_licznik_klientow(klient_message& request) {
 }
 
 int main(int argc, char *argv[]) {
+    //signal(SIGINT, SIG_IGN);
 
     float zarobki = 0.0f;
     int transakcje = 0;
     printf("KASA CZYNNA  PID: %d", getpid() );
     fflush(stdout);
     g_park = attach_to_shared_block();
-    int kasaId = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
+    int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
     std::map<pid_t, serwer_message> clients_pids;
     initialize_semaphore(g_park->licznik_klientow, 0, MAX_KLIENTOW_W_PARKU);
     struct msqid_ds buf;
     msgctl(kasaId, IPC_STAT, &buf);
 
-    while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0 && buf.msg_qnum > 0) {
-
+    while (1) {
+        msgctl(kasaId, IPC_STAT, &buf);
+        int klienci_w_parku = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
+        if (!g_park->park_otwarty && klienci_w_parku == 0 && buf.msg_qnum == 0) {
+            break;
+    }
         klient_message request{};
         serwer_message reply{};
         payment_message payment_request{};
@@ -108,7 +113,6 @@ int main(int argc, char *argv[]) {
         }
         msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
 
-        msgctl(kasaId, IPC_STAT, &buf);
 
     }
     printf("\n[KASA] Zamykam kasę\n");
@@ -124,9 +128,9 @@ int main(int argc, char *argv[]) {
 
     usleep(10000);
 
-    if (msgctl(kasaId, IPC_RMID, NULL) == -1) {
-        perror("msgctl IPC_RMID kasa");
-    }
+    // if (msgctl(kasaId, IPC_RMID, NULL) == -1) {
+    //     perror("msgctl IPC_RMID kasa");
+    // }
 
     detach_from_shared_block(g_park);
     return 0;

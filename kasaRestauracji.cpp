@@ -9,21 +9,26 @@ int main(int argc, char* argv[]) {
     fflush(stdout);
     init_random();
     g_park = attach_to_shared_block();
+    //signal(SIGINT, SIG_IGN);
 
-    int kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED);
+    int kasa_rest_id = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED);
     restauracja_message msg;
     int licznik_transakcji = 0;
     float suma_przychodow = 0.0f;
     struct msqid_ds buf;
     msgctl(kasa_rest_id, IPC_STAT, &buf);
 
-    while (g_park->park_otwarty || buf.msg_qnum > 0) {
-        if (!g_park->park_otwarty) {
-            printf("dalej działa");
+    while (1) {
+        msgctl(kasa_rest_id, IPC_STAT, &buf);
+        if (!g_park->park_otwarty && buf.msg_qnum == 0) {
+            break;  // park zamknięty i kolejka pusta
         }
-        usleep(50000);
+
         if (buf.msg_qnum == 0) {continue;}
-        if (msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 1, IPC_NOWAIT) == -1) {continue;}
+        if (msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 1, IPC_NOWAIT) == -1) {
+            usleep(10000);
+            continue;
+        }
         msg.kwota = oblicz_koszt_restauracji(msg.czas_pobytu_min);
         suma_przychodow += msg.kwota;
         licznik_transakcji++;
@@ -37,7 +42,6 @@ int main(int argc, char* argv[]) {
         fflush(stdout);
         msg.mtype = msg.pid_klienta;
         msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
-        msgctl(kasa_rest_id, IPC_STAT, &buf);
 
     }
 
@@ -52,9 +56,6 @@ int main(int argc, char* argv[]) {
     printf("========================================\n");
     fflush(stdout);
 
-    if (msgctl(kasa_rest_id, IPC_RMID, NULL) == -1) {
-        perror("msgctl IPC_RMID restauracja");
-    }
 
     detach_from_shared_block(g_park);
 

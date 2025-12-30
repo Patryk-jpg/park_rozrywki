@@ -5,6 +5,8 @@ park_wspolne* g_park = nullptr;
 std::vector<pid_t> pracownicy_pids;
 pid_t kasa_pid = -1;
 pid_t kasa_rest_pid = -1;
+int kasa_rest_id =  -1;
+int kasa_id = -1;
 static volatile sig_atomic_t signal3 = 0;
 
 void poczekaj_na_kasy() {
@@ -100,7 +102,7 @@ void zakoncz_pracownikow() {
     }
 
     printf("[PARK] Czekam na zakonczenie pracowników...\n");
-    for (size_t i = 0; i < pracownicy_pids.size(); i++) {
+    for (size_t i = 0; i < LICZBA_ATRAKCJI-1; i++) {
         int status;
         pid_t pid = waitpid(pracownicy_pids[i], &status, 0);
         if (pid > 0) {
@@ -137,6 +139,8 @@ int   main() {
     const int queuefile = open(SEED_FILENAME_QUEUE, O_CREAT | O_RDONLY, 0666);
     error_check(queuefile, "open");
     close(queuefile);
+    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
+    kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED);
 
     g_park = attach_to_shared_block();
     memset(g_park, 0, sizeof(park_wspolne));
@@ -183,9 +187,14 @@ int   main() {
 
     if (!signal3) {
         zakoncz_pracownikow();
-
     }
     poczekaj_na_kasy();
+    if (msgctl(kasa_rest_id, IPC_RMID, NULL) == -1) {
+        perror("msgctl IPC_RMID restauracja");
+    }
+    if (msgctl(kasa_id, IPC_RMID, NULL) == -1) {
+        perror("msgctl IPC_RMID kasa");
+    }
     for (int i = 0; i < LICZBA_ATRAKCJI - 1; i++) {
         int kolejka_id = g_park->pracownicy_keys[i];
         if (kolejka_id > 0) {
