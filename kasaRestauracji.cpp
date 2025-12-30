@@ -18,8 +18,10 @@ int main(int argc, char* argv[]) {
     msgctl(kasa_rest_id, IPC_STAT, &buf);
 
     while (g_park->park_otwarty || buf.msg_qnum > 0) {
+        if (!g_park->park_otwarty) {
+            printf("dalej działa");
+        }
         usleep(50000);
-        msgctl(kasa_rest_id, IPC_STAT, &buf);
         if (buf.msg_qnum == 0) {continue;}
         if (msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 1, IPC_NOWAIT) == -1) {continue;}
         msg.kwota = oblicz_koszt_restauracji(msg.czas_pobytu_min);
@@ -35,6 +37,8 @@ int main(int argc, char* argv[]) {
         fflush(stdout);
         msg.mtype = msg.pid_klienta;
         msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
+        msgctl(kasa_rest_id, IPC_STAT, &buf);
+
     }
 
     printf("\n[KASA RESTAURACJI] Zamykam kasę\n");

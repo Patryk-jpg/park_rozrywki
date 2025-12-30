@@ -21,6 +21,7 @@
 #define CZAS_OTWARCIA 8
 #define CZAS_ZAMKNIECIA 20
 #define PROCENT_VIP 1
+#define LICZBA_ATRAKCJI 17
 #define BILET_2H 120
 #define BILET_4H 240
 #define BILET_6H 360

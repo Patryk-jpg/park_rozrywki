@@ -62,13 +62,15 @@ int main(int argc, char* argv[]) {
                     }
                     czasyJazdy[i].pids.clear();
                     czasyJazdy[i].zajete = false;
-                    ACKmes mes_queue;
-                    while (msgrcv(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0, IPC_NOWAIT) != -1) {
-                        mes_queue.mtype = mes_queue.ack;
-                        mes_queue.ack = -2;  // zatrzymano atrakcje wiec sprobuj pozniej
-                        msgsnd(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0);
-                    }
+
                 }
+
+            }
+            ACKmes mes_queue;
+            while (msgrcv(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0, IPC_NOWAIT) != -1) {
+                mes_queue.mtype = mes_queue.ack;
+                mes_queue.ack = -2;  // zatrzymano atrakcje wiec sprobuj pozniej
+                msgsnd(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0);
             }
             zatrzymano = true;
             ewakuacja = false;

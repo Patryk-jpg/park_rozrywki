@@ -36,7 +36,10 @@ int main(int argc, char *argv[]) {
     int kasaId = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
     std::map<pid_t, serwer_message> clients_pids;
     initialize_semaphore(g_park->licznik_klientow, 0, MAX_KLIENTOW_W_PARKU);
-    while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
+    struct msqid_ds buf;
+    msgctl(kasaId, IPC_STAT, &buf);
+
+    while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0 && buf.msg_qnum > 0) {
 
         klient_message request{};
         serwer_message reply{};
@@ -105,7 +108,7 @@ int main(int argc, char *argv[]) {
         }
         msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
 
-
+        msgctl(kasaId, IPC_STAT, &buf);
 
     }
     printf("\n[KASA] Zamykam kasę\n");
