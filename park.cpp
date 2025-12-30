@@ -94,15 +94,15 @@ void sig3handler(int sig) {
 
 }
 void zakoncz_pracownikow() {
-    printf("[PARK] Wysylam sygnały SIGUSR1 do pracownikow...\n");
-    for (auto pid : pracownicy_pids) {
-        if (kill(pid, SIGINT) == -1) {
-            perror("kill SIGINT");
-        }
-    }
+    // printf("[PARK] Wysylam sygnały SIGINT do pracownikow...\n");
+    // // for (auto pid : pracownicy_pids) {
+    // //     if (kill(pid, SIGINT) == -1) {
+    // //         perror("kill SIGINT");
+    // //     }
+    // // }
 
     printf("[PARK] Czekam na zakonczenie pracowników...\n");
-    for (size_t i = 0; i < LICZBA_ATRAKCJI-1; i++) {
+    for (size_t i = 0; i < LICZBA_ATRAKCJI; i++) {
         int status;
         pid_t pid = waitpid(pracownicy_pids[i], &status, 0);
         if (pid > 0) {
@@ -173,7 +173,7 @@ int   main() {
 
             g_park->park_otwarty = false;
         }
-        if ((rand() % 100 > 40) && (g_park->park_otwarty)) {
+        if ((rand() % 100 > 40) && (g_park->park_otwarty) && (!signal3)) {
             pid_t pid = fork();
             if (pid == 0) {
                 char* args[] = { (char*)"klient", NULL };
@@ -185,10 +185,12 @@ int   main() {
         }
     }
 
-    if (!signal3) {
-        zakoncz_pracownikow();
-    }
+
     poczekaj_na_kasy();
+    printf("[PARK] Zbieranie pozostałych procesów...\n");
+    int status;
+    while (wait(&status) > 0) {
+    }
     if (msgctl(kasa_rest_id, IPC_RMID, NULL) == -1) {
         perror("msgctl IPC_RMID restauracja");
     }
@@ -203,10 +205,7 @@ int   main() {
             }
         }
     }
-    printf("[PARK] Zbieranie pozostałych procesów...\n");
-    int status;
-    while (wait(&status) > 0) {
-    }
+
     printf("PARK ZAMKNIETY");
     printf("Sprzątanie zasobów...\n");
     free_semaphore(g_park->licznik_klientow, 0);

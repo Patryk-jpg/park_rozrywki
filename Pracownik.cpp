@@ -6,7 +6,7 @@ static volatile sig_atomic_t zatrzymano = 0;
 
 void sig1handler(int sig) {
     printf("Otrzymano sygnal zatrzymania atrakcji sygnał %d!\n", sig);
-   ewakuacja =  1;
+   zatrzymano =  1;
 }
 
 void sig2handler(int sig) {
@@ -14,7 +14,11 @@ void sig2handler(int sig) {
     zatrzymano = 0;
 }
 
-
+void sig3handler(int sig) {
+    printf("Otrzymano sygnal SIGINT EWAKUACJA  sygnał %d!\n", sig);
+    zatrzymano = 1;
+    ewakuacja = 1;
+}
 int znajdzWolnyWagonik(czasy czasyJazdy[], int iloscWagonikow) {
     for (int i = 0; i < iloscWagonikow; i++) {
         if (czasyJazdy[i].zajete == false) return i;
@@ -26,7 +30,7 @@ int main(int argc, char* argv[]) {
 
     signal(SIGUSR1, sig1handler);
     signal(SIGUSR2, sig2handler);
-    //signal(SIGINT, SIG_IGN);
+    signal(SIGINT, sig3handler);
 
     if (argc < 2) {
         fprintf(stderr, "Brak numeru atrakcji!\n");
@@ -53,7 +57,9 @@ int main(int argc, char* argv[]) {
     }
 
     while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
-        if (ewakuacja) {
+        if (zatrzymano) {
+            printf("zatrzymano na %d\n", nr_atrakcji);
+            fflush(stdout);
             for (int i = 0; i < iloscWagonikow; i++) {
                 if (czasyJazdy[i].zajete) {
                     for (auto pid : czasyJazdy[i].pids) {
@@ -70,12 +76,21 @@ int main(int argc, char* argv[]) {
             }
             ACKmes mes_queue;
             while (msgrcv(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0, IPC_NOWAIT) != -1) {
+                printf("odpowiadam na %d\n", mes.ack);
+                fflush(stdout);
+
                 mes_queue.mtype = mes_queue.ack;
                 mes_queue.ack = -2;  // zatrzymano atrakcje wiec sprobuj pozniej
                 msgsnd(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0);
             }
-            zatrzymano = true;
-            ewakuacja = false;
+
+            if (ewakuacja) {
+                printf("zamykam sie\n");
+                fflush(stdout);
+
+                signal(SIGINT, SIG_DFL);
+                raise(SIGINT);
+            }
         }
 
         SimTime curTime = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
