@@ -68,7 +68,9 @@ int main(int argc, char* argv[]) {
     _exit(0);
 }
 void wejdz_do_parku() {
-
+    if (!g_park->park_otwarty) {
+        return;
+    }
     klient_message k_msg{};
     serwer_message reply;
     int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
@@ -109,7 +111,9 @@ void wejdz_do_parku() {
 }
 
 int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
-
+    if (!g_park->park_otwarty) {
+        return -3;
+    }
     int atrakcja_id = g_park->pracownicy_keys[nr_atrakcji];
     ACKmes mes;
     mes.mtype = 100; // 100 = "chce dolaczyc do atrakcji"
@@ -205,6 +209,9 @@ void baw_sie() {
         }
         if (status == -2) {
             continue;
+        }
+        if (status == -3) {
+            return;
         }
         if (!random_chance(95)) {
             g_klient.odwiedzone.push_back(nr_atrakcji);

@@ -91,6 +91,9 @@ struct park_wspolne {
     pid_t pid_parku;
     int licznik_klientow;
     int pracownicy_keys[17];
+    int czas_sem;
+    int licznik_sem;
+
 };
 // Parametry atrakcji
 
@@ -147,7 +150,7 @@ int read_semaphore(int semId, int number);
 
 void handler_zamknij_park(int sig);
 
-int create_message_queue(const char* filename, int seed);
+int create_message_queue(const char* filename, int seed, int msgflg);
 void add_message_to_message_queue();
 void load_message_from_message_queue();
 

@@ -111,10 +111,7 @@ void zakoncz_pracownikow() {
     }
 
 }
-void zbierz_zombie_procesy() {
-    int status;
-    while (waitpid(-1, &status, WNOHANG) > 0);
-}
+
 int   main() {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
@@ -139,8 +136,8 @@ int   main() {
     const int queuefile = open(SEED_FILENAME_QUEUE, O_CREAT | O_RDONLY, 0666);
     error_check(queuefile, "open");
     close(queuefile);
-    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
-    kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED);
+    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED, 0655);
+    kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED, 0644);
 
     g_park = attach_to_shared_block();
     memset(g_park, 0, sizeof(park_wspolne));
@@ -148,16 +145,29 @@ int   main() {
     g_park->park_otwarty = true;
     g_park->czas_w_symulacji.hour = CZAS_OTWARCIA;
     g_park->czas_w_symulacji.minute = 0;
+    int licznik_sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED + 2);
+    int czas_sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED + 3);
+    int licznik_sem = allocate_semaphore(licznik_sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
+    int czas_sem = allocate_semaphore(czas_sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
+    initialize_semaphore(licznik_sem, 0, 1);
+    initialize_semaphore(czas_sem, 0, 1);
+    g_park->licznik_sem = licznik_sem;
+    g_park->czas_sem = czas_sem;
     int sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED);
-    int licznik_klientow = allocate_semaphore(sem_key, 1, 0666| IPC_CREAT | IPC_EXCL);
+    int licznik_klientow = allocate_semaphore(sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
     for (int i = 0; i < (sizeof(atrakcje) / sizeof(atrakcje[0]))-1; i++) {
-        g_park->pracownicy_keys[i] = create_message_queue(SEED_FILENAME_QUEUE, i);
+        g_park->pracownicy_keys[i] = create_message_queue(SEED_FILENAME_QUEUE, i, 0600);
     }
     g_park->licznik_klientow = licznik_klientow;
     uruchom_pracownikow();
     uruchom_kase();
     uruchom_kase_restauracji();
     while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
+
+        // int licznik_klientow= MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
+        // if (licznik_klientow != 0) {
+        //     break;
+        // }
         if (signal3) {
             printf("\n[PARK] *** EWAKUACJA - ZAMYKAM PARK ***\n");
             g_park->park_otwarty = false;
@@ -167,7 +177,7 @@ int   main() {
         usleep(50000);
         g_park->czas_w_symulacji.increment_minute();
         //g_park->czas_w_symulacji.print();
-        printf("Aktualni ludzie w parku %d, \n", MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0));
+        // printf("Aktualni ludzie w parku %d, \n", MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0));
         fflush(stdout);
         if (g_park->czas_w_symulacji.hour >= CZAS_ZAMKNIECIA) {
 
@@ -209,6 +219,9 @@ int   main() {
     printf("PARK ZAMKNIETY");
     printf("Sprzątanie zasobów...\n");
     free_semaphore(g_park->licznik_klientow, 0);
+    free_semaphore(g_park->czas_sem, 0);
+    free_semaphore(g_park->licznik_sem, 0);
+
     detach_from_shared_block(g_park);
     destroy_shared_block((char*)SEED_FILENAME_PARK);
     printf(" Koniec symulacji\n");

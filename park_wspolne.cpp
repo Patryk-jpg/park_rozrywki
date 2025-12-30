@@ -112,10 +112,10 @@ SimTime SimTime::operator+(const SimTime &other) const {
 
 
 
-int create_message_queue(const char* filename, int seed) {
+int create_message_queue(const char* filename, int seed, int msgflg) {
     key_t key = ftok(filename, seed);
     error_check((int) key, "ftok");
-    int kasaId = msgget(key, 0666 | IPC_CREAT | IPC_EXCL);
+    int kasaId = msgget(key, msgflg | IPC_CREAT | IPC_EXCL);
     error_check(kasaId, "msgget");
     return kasaId;
 }
