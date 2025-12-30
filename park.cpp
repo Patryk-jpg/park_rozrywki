@@ -96,8 +96,8 @@ void sig3handler(int sig) {
 void zakoncz_pracownikow() {
     printf("[PARK] Wysylam sygnały SIGUSR1 do pracownikow...\n");
     for (auto pid : pracownicy_pids) {
-        if (kill(pid, SIGUSR1) == -1) {
-            perror("kill SIGUSR1");
+        if (kill(pid, SIGINT) == -1) {
+            perror("kill SIGINT");
         }
     }
 
@@ -205,8 +205,8 @@ int   main() {
     }
     printf("[PARK] Zbieranie pozostałych procesów...\n");
     int status;
-    // while (wait(&status) > 0) {
-    // }
+    while (wait(&status) > 0) {
+    }
     printf("PARK ZAMKNIETY");
     printf("Sprzątanie zasobów...\n");
     free_semaphore(g_park->licznik_klientow, 0);

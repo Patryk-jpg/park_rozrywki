@@ -27,7 +27,6 @@ int update_licznik_klientow(klient_message& request) {
 }
 
 int main(int argc, char *argv[]) {
-    //signal(SIGINT, SIG_IGN);
 
     float zarobki = 0.0f;
     int transakcje = 0;
@@ -112,7 +111,6 @@ int main(int argc, char *argv[]) {
             reply.status = -1;
         }
         msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
-
 
     }
     printf("\n[KASA] Zamykam kasę\n");

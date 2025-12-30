@@ -84,17 +84,13 @@ struct SimTime {
 
 };
 
-class park_wspolne {
-    public:
+struct park_wspolne {
     int max_klientow;
     bool park_otwarty;
     SimTime czas_w_symulacji;
     pid_t pid_parku;
     int licznik_klientow;
     int pracownicy_keys[17];
-
-    void uruchom_kase();
-    void uruchom_kase_restauracji();
 };
 // Parametry atrakcji
 

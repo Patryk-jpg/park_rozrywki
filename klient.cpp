@@ -17,7 +17,6 @@ bool contains(const std::vector<int>& lista, int val) {
     return false;
 }
 int main(int argc, char* argv[]) {
-    //signal(SIGINT, SIG_IGN);
 
     init_random();
     g_park = attach_to_shared_block();
