@@ -21,7 +21,7 @@ SimTime getTime() {
 
 bool park_otwarty() {
     wait_semaphore(g_park->park_sem,0,0);
-    bool open = g_park->park_otwarty;
+    bool open = g_park->park_otwarty && !ewakuacja;
     signal_semaphore(g_park->park_sem,0);
     return open;
 }
@@ -35,7 +35,11 @@ bool contains(const std::vector<int>& lista, int val) {
     return false;
 }
 int main(int argc, char* argv[]) {
-
+    struct sigaction sa_int{};
+    sa_int.sa_handler = sigint_handler;
+    sigemptyset(&sa_int.sa_mask);
+    sa_int.sa_flags = 0;
+    sigaction(SIGINT, &sa_int, nullptr);
     init_random();
     g_park = attach_to_shared_block();
     if (random_chance(1)) {
@@ -109,8 +113,11 @@ void wejdz_do_parku() {
     printf("Klient %d - zapisuje sie do kolejki do parku\n", g_klient.pidKlienta);
     fflush(stdout);
     msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
-
-    msgrcv(kasaId, &reply, sizeof(reply) - sizeof(long), g_klient.pidKlienta, 0);
+    //msgrcv(kasaId, &reply, sizeof(reply) - sizeof(long), g_klient.pidKlienta, 0);
+    while (msgrcv(kasaId, &reply, sizeof(reply) - sizeof(long), g_klient.pidKlienta, IPC_NOWAIT) == -1) {
+        if (ewakuacja) return;
+        usleep(10000);
+    }
 
     printf("Klient %d wychodzi z kolejki\n",g_klient.pidKlienta);
     fflush(stdout);
@@ -136,6 +143,7 @@ void wejdz_do_parku() {
 
 int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
     if (!park_otwarty()) {
+        PRINT_ERROR("park");
         return -3;
     }
     int atrakcja_id = g_park->pracownicy_keys[nr_atrakcji];
@@ -159,7 +167,15 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
     // printf("Klient %d czeka w kolejce do %s o godz %02d:%02d \n", g_klient.pidKlienta, atrakcje[nr_atrakcji].nazwa
     //     ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
 
-    msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), identifier, 0);
+    //msgrcv(atrakcja_id, &mes, sizeof(mes) - sizeof(long), identifier, 0);
+    while (msgrcv(atrakcja_id, &mes, sizeof(mes) - sizeof(long), g_klient.pidKlienta, IPC_NOWAIT) == -1) {
+
+        if (ewakuacja) {
+            return -3;
+            PRINT_ERROR("park error");
+        }
+        usleep(10000);
+    }
     // printf("Klient %d wychodzi z kolejki do %s o godz %02d:%02d \n", g_klient.pidKlienta, atrakcje[nr_atrakcji].nazwa
     //      ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
 
@@ -185,20 +201,34 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
             int mess = msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), identifier, IPC_NOWAIT);
 
             if (mess != -1 ) {return mes.ack;}
-            usleep(10000);
+            usleep(1000);
 
         }
         mes.mtype = 99; // rezygnuje z atrakcji
         mes.ack = identifier;
         mes.wagonik = moj_wagonik;
         msgsnd(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), 0);
-        msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), identifier, 0);
+        //msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), identifier, 0);
+        while (msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, IPC_NOWAIT) == -1) {
+            if (ewakuacja) {
+                return -3;
+                PRINT_ERROR("park error");
+            }
+            usleep(10000);
+        }
         if (mes.ack == -1 || mes.ack == -2 || mes.ack == -3) {
             return mes.ack;
         }
     }
     else {
-        msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), identifier, 0);
+        //msgrcv(atrakcja_id, &mes , sizeof(ACKmes) - sizeof(long), identifier, 0);
+        while (msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), g_klient.pidKlienta, IPC_NOWAIT) == -1) {
+            if (ewakuacja) {
+                return -3;
+                PRINT_ERROR("park error");
+            }
+            usleep(10000);
+        }
         if (mes.ack == -1 || mes.ack == -2 || mes.ack == -3) {
             return mes.ack;
         }
@@ -268,7 +298,7 @@ void baw_sie() {
         }
 
 
-        usleep(100000);
+        usleep(1000);
         curTime = getTime();
     }
 
@@ -286,7 +316,11 @@ void wyjdz_z_parku() {
 
     k_msg.mtype = 101;
     msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
-    msgrcv(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), g_klient.pidKlienta, 0);
+    //msgrcv(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), g_klient.pidKlienta, 0);
+    while (msgrcv(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), g_klient.pidKlienta, IPC_NOWAIT) == -1) {
+        if (ewakuacja) return;
+        usleep(10000);
+    }
     SimTime curTime = getTime();
     printf("Klient %d wychodzi z parku CZAS: %02d:%02d \n", g_klient.pidKlienta, curTime.hour,curTime.minute );
     wait_semaphore(g_park->park_sem,0,0);
@@ -309,7 +343,11 @@ void  zaplac_za_restauracje_z_zewnatrz(int czas_pobytu) {
     msg.pid_klienta = g_klient.pidKlienta;
     msg.czas_pobytu_min = czas_pobytu * g_klient.ilosc_osob;
     msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
-    msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), g_klient.pidKlienta, 0);
+    //msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), g_klient.pidKlienta, 0);
+    while (msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), g_klient.pidKlienta, IPC_NOWAIT) == -1) {
+        if (ewakuacja) return;
+        usleep(10000);
+    }
     curTime = getTime();
     printf("Klient %d wychodzi z restauracji, zapłacił %.2f zł o %02d:%02d\n",
         g_klient.pidKlienta,

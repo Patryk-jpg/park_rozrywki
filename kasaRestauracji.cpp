@@ -7,11 +7,12 @@ void sig3handler(int sig) {
 }
 
 int main(int argc, char* argv[]) {
+    signal(SIGINT, SIG_IGN);
     struct sigaction sa_int{};
     sa_int.sa_handler = sig3handler;
     sigemptyset(&sa_int.sa_mask);
     sa_int.sa_flags = 0;
-    sigaction(SIGINT, &sa_int, nullptr);
+    sigaction(SIGUSR1, &sa_int, nullptr);
     printf("[KASA RESTAURACJI] Uruchamianie...\n");
     fflush(stdout);
     init_random();
@@ -40,7 +41,7 @@ int main(int argc, char* argv[]) {
 
         if (buf.msg_qnum == 0) {continue;}
         if (msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 1, IPC_NOWAIT) == -1) {
-            usleep(10000);
+            usleep(1000);
             continue;
         }
         msg.kwota = oblicz_koszt_restauracji(msg.czas_pobytu_min);

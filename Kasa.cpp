@@ -33,11 +33,12 @@ int update_licznik_klientow(klient_message& request) {
 }
 
 int main(int argc, char *argv[]) {
+    signal(SIGINT, SIG_IGN);
     struct sigaction sa_int{};
     sa_int.sa_handler = sig3handler;
     sigemptyset(&sa_int.sa_mask);
     sa_int.sa_flags = 0;
-    sigaction(SIGINT, &sa_int, nullptr);
+    sigaction(SIGUSR1, &sa_int, nullptr);
     float zarobki = 0.0f;
     int transakcje = 0;
     printf("KASA CZYNNA  PID: %d", getpid() );
@@ -131,13 +132,14 @@ int main(int argc, char *argv[]) {
         clients_pids[request.pid_klienta] = reply;
         reply.status = update_licznik_klientow(request);
         wait_semaphore(g_park->park_sem, 0, 0);
-            if (!g_park->park_otwarty) {
+            if (!g_park->park_otwarty || ewakuacja) {
                 reply.status = -1;
             }
         signal_semaphore(g_park->park_sem, 0);
         msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
 
     }
+
     printf("\n[KASA] Zamykam kasę\n");
     printf("========================================\n");
     printf("Podsumowanie dnia:\n");

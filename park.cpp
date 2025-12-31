@@ -11,7 +11,10 @@ static volatile sig_atomic_t signal3 = 0;
 
 void poczekaj_na_kasy() {
     printf("[PARK] Czekam na zakończenie kas...\n");
-
+    if (signal3) {
+        kill(kasa_pid, SIGUSR1);
+        kill(kasa_rest_pid, SIGUSR1);
+    }
     if (kasa_pid > 0) {
         int status;
         printf("[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
@@ -192,7 +195,7 @@ int   main() {
             wait_semaphore(g_park->park_sem,0,0);
                 g_park->park_otwarty = false;
             signal_semaphore(g_park->park_sem,0);
-            zakoncz_pracownikow();
+            //zakoncz_pracownikow();
             break;
         }
 
@@ -224,7 +227,12 @@ int   main() {
 
     zakoncz_pracownikow();
     poczekaj_na_kasy();
+    wait_semaphore(g_park->park_sem,0,0);
+    g_park->park_otwarty = false;
+    signal_semaphore(g_park->park_sem,0);
     printf("[PARK] Zbieranie pozostałych procesów...\n");
+    signal(SIGQUIT, SIG_IGN);
+    kill(0, SIGQUIT); // Sends signal to all processes in the current PGID
     int status;
     while (wait(&status) > 0) {
     }
