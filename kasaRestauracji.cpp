@@ -1,10 +1,17 @@
 
 
 #include "kasaRestauracji.h"
-
-
+static volatile sig_atomic_t ewakuacja = 0;
+void sig3handler(int sig) {
+    ewakuacja = 1;
+}
 
 int main(int argc, char* argv[]) {
+    struct sigaction sa_int{};
+    sa_int.sa_handler = sig3handler;
+    sigemptyset(&sa_int.sa_mask);
+    sa_int.sa_flags = 0;
+    sigaction(SIGINT, &sa_int, nullptr);
     printf("[KASA RESTAURACJI] Uruchamianie...\n");
     fflush(stdout);
     init_random();
@@ -19,6 +26,9 @@ int main(int argc, char* argv[]) {
     msgctl(kasa_rest_id, IPC_STAT, &buf);
 
     while (1) {
+        if (ewakuacja) {
+            break;
+        }
         msgctl(kasa_rest_id, IPC_STAT, &buf);
 
         wait_semaphore(g_park->park_sem,0,0);

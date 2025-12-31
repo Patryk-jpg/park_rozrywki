@@ -6,7 +6,10 @@
 #include "park_wspolne.h"
 
 park_wspolne* g_park = nullptr;
-
+static volatile sig_atomic_t ewakuacja = 0;
+void sig3handler(int sig) {
+    ewakuacja = 1;
+}
 int update_licznik_klientow(klient_message& request) {
     wait_semaphore(g_park->park_sem,0,0);
     int zajete = 0;
@@ -30,7 +33,11 @@ int update_licznik_klientow(klient_message& request) {
 }
 
 int main(int argc, char *argv[]) {
-
+    struct sigaction sa_int{};
+    sa_int.sa_handler = sig3handler;
+    sigemptyset(&sa_int.sa_mask);
+    sa_int.sa_flags = 0;
+    sigaction(SIGINT, &sa_int, nullptr);
     float zarobki = 0.0f;
     int transakcje = 0;
     printf("KASA CZYNNA  PID: %d", getpid() );
@@ -43,6 +50,9 @@ int main(int argc, char *argv[]) {
     msgctl(kasaId, IPC_STAT, &buf);
 
     while (1) {
+        if (ewakuacja) {
+            break;
+        }
         msgctl(kasaId, IPC_STAT, &buf);
         wait_semaphore(g_park->park_sem, 0, 0);
             int klienci_w_parku = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
@@ -141,9 +151,7 @@ int main(int argc, char *argv[]) {
 
     usleep(1000);
 
-    // if (msgctl(kasaId, IPC_RMID, NULL) == -1) {
-    //     perror("msgctl IPC_RMID kasa");
-    // }
+
 
     detach_from_shared_block(g_park);
     return 0;

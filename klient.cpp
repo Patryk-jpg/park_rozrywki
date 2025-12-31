@@ -5,7 +5,10 @@
 
 #include <unistd.h>
 
-
+static volatile sig_atomic_t ewakuacja = 0;
+void sigint_handler(int sig) {
+    ewakuacja = 1;
+}
 park_wspolne* g_park = nullptr;
 static klient g_klient;
 

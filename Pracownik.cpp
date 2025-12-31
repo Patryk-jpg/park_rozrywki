@@ -11,19 +11,18 @@ SimTime getTime() {
     return curTime;
 }
 void sig1handler(int sig) {
-    printf("Otrzymano sygnal zatrzymania atrakcji sygnał %d!\n", sig);
    zatrzymano =  1;
 }
 
 void sig2handler(int sig) {
-    printf("Otrzymano sygnal ponownego uruchomienia atrakcji sygnał %d!\n", sig);
     zatrzymano = 0;
 }
 
 void sig3handler(int sig) {
-    printf("Otrzymano sygnal SIGINT EWAKUACJA  sygnał %d!\n", sig);
     zatrzymano = 1;
     ewakuacja = 1;
+    //sleep(1);
+
 }
 int znajdzWolnyWagonik(czasy czasyJazdy[], int iloscWagonikow) {
     for (int i = 0; i < iloscWagonikow; i++) {
@@ -33,18 +32,31 @@ int znajdzWolnyWagonik(czasy czasyJazdy[], int iloscWagonikow) {
     return -1;
 }
 int main(int argc, char* argv[]) {
+    struct sigaction sa_int{};
+    sa_int.sa_handler = sig3handler;
+    sigemptyset(&sa_int.sa_mask);
+    sa_int.sa_flags = 0;
+    sigaction(SIGINT, &sa_int, nullptr);
 
-    signal(SIGUSR1, sig1handler);
-    signal(SIGUSR2, sig2handler);
-    signal(SIGINT, sig3handler);
+    struct sigaction sa_usr1{};
+    sa_usr1.sa_handler = sig1handler;
+    sigemptyset(&sa_usr1.sa_mask);
+    sa_usr1.sa_flags = 0;
+    sigaction(SIGUSR1, &sa_usr1, nullptr);
+
+    struct sigaction sa_usr2{};
+    sa_usr2.sa_handler = sig2handler;
+    sigemptyset(&sa_usr2.sa_mask);
+    sa_usr2.sa_flags = 0;
+    sigaction(SIGUSR2, &sa_usr2, nullptr);
 
     if (argc < 2) {
-        fprintf(stderr, "Brak numeru atrakcji!\n");
+        PRINT_ERROR("Brak numeru atrakcji!\n");
         return 1;
     }
     int nr_atrakcji = atoi(argv[1]);
     if (nr_atrakcji < 0 || nr_atrakcji >= 17) {
-        fprintf(stderr, "Niepoprawny numer atrakcji: %d\n", nr_atrakcji);
+        PRINT_ERROR("Niepoprawny numer atrakcji: %d\n");
         _exit(1);
     }
     printf("[PRACOWNIK-%d] Start obsługi atrakcji: %s (PID: %d)\n",
@@ -76,6 +88,8 @@ int main(int argc, char* argv[]) {
 
         if (zatrzymano) {
             printf("zatrzymano na %d\n", nr_atrakcji);
+            printf("Otrzymano sygnal SIGINT EWAKUACJA  sygnał!\n");
+
             fflush(stdout);
             for (int i = 0; i < iloscWagonikow; i++) {
                 if (czasyJazdy[i].zajete) {
@@ -94,19 +108,18 @@ int main(int argc, char* argv[]) {
             }
             ACKmes mes_queue;
             while (msgrcv(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0, IPC_NOWAIT) != -1) {
-                fflush(stdout);
-
                 mes_queue.mtype = mes_queue.ack;
+                if (mes.mtype == -1 || mes_queue.mtype == -2 || mes_queue.mtype == -3) {
+                    continue;
+                }
                 mes_queue.ack = -2;  // zatrzymano atrakcje wiec sprobuj pozniej
-                msgsnd(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0);
+                msgsnd(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), IPC_NOWAIT);
             }
-
             if (ewakuacja) {
-                fflush(stdout);
-
-                signal(SIGINT, SIG_DFL);
-                raise(SIGINT);
+                break;
             }
+            usleep(1000);
+            continue;
         }
             SimTime curTime = getTime();
             while (msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 99, IPC_NOWAIT) != -1) {
@@ -117,11 +130,6 @@ int main(int argc, char* argv[]) {
                     czasyJazdy[mes.wagonik].pids.erase(it);
                 }
                 mes.mtype = mes.ack;
-                if (zatrzymano) {
-                    printf("Wyrzucam z kolejki w atrakcji %d", nr_atrakcji);
-                    usleep(10000);
-                    mes.ack = -2;
-                }
                 msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0); //potwierdzenie
                 //printf("Klient %d zrezygnowal z %s w wagoniku %d\n", mes.ack, atrakcje[nr_atrakcji].nazwa, mes.wagonik);
             }
@@ -185,12 +193,19 @@ int main(int argc, char* argv[]) {
 
         }
 
-        usleep(10000);
-        if (!g_park->park_otwarty) {
-            printf("pracownik dalej pracuje %s", atrakcje[nr_atrakcji].nazwa);
-            fflush(stdout);
         }
+
+    if (ewakuacja) {
+        ACKmes mes_queue;
+        while (msgrcv(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0, IPC_NOWAIT) != -1) {
+            mes_queue.mtype = mes_queue.ack;
+            if (mes.mtype == -1 || mes_queue.mtype == -2 || mes_queue.mtype == -3) {
+                continue;
+            }
+            mes_queue.ack = -2;
+            msgsnd(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), IPC_NOWAIT);
         }
+    }
     printf("Pracownik zkonczyl prace atrakcja %s \n", atrakcje[nr_atrakcji].nazwa);
     fflush(stdout);
 

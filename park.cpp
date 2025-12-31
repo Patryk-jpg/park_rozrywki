@@ -132,7 +132,7 @@ int   main() {
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = sig3handler;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
+    sa.sa_flags = 0;
 
     if (sigaction(SIGINT, &sa, NULL) == -1) {
         perror("sigaction SIGINT");
@@ -229,10 +229,10 @@ int   main() {
     while (wait(&status) > 0) {
     }
     if (msgctl(kasa_rest_id, IPC_RMID, NULL) == -1) {
-        perror("msgctl IPC_RMID restauracja");
+        PRINT_ERROR("msgctl IPC_RMID restauracja");
     }
     if (msgctl(kasa_id, IPC_RMID, NULL) == -1) {
-        perror("msgctl IPC_RMID kasa");
+        PRINT_ERROR("msgctl IPC_RMID kasa");
     }
 
 

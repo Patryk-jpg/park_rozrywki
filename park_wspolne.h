@@ -2,6 +2,7 @@
 // Created by janik on 11/12/2025.
 //
 #pragma once
+#define PRINT_ERROR(msg) print_error_impl(__FILE__, __LINE__, __func__, msg)
 
 #include <ctime>
 #include <string>
@@ -17,6 +18,10 @@
 #include <fcntl.h>
 #include <vector>
 #include <sys/msg.h>
+#include <cerrno>
+#include <cstring>
+#include <cstdarg>
+#include <iostream>
 #define MAX_KLIENTOW_W_PARKU 100
 #define CZAS_OTWARCIA 8
 #define CZAS_ZAMKNIECIA 20
@@ -50,6 +55,7 @@ struct Atrakcja {
     bool mozna_opuscic;
     bool sezonowa_letnia;
 };
+void print_error_impl(const char* file, int line, const char* func, const std::string& msg);
 
 struct SimTime {
     int hour = 0;

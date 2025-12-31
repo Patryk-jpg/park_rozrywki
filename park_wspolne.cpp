@@ -5,7 +5,12 @@
 #include "park_wspolne.h"
 
 using namespace std;
-
+void print_error_impl(const char* file, int line, const char* func, const std::string& msg) {
+    int error_code = errno; // bieżący kod błędu
+    std::cerr << file << ":" << line << " " << func
+              << "() | " << msg
+              << ": " << std::strerror(error_code) << std::endl;
+}
 
 int get_shared_block_id() {
     key_t key;
@@ -72,18 +77,26 @@ int wait_semaphore(int semId, int number, int flags) {
     operacje[0].sem_num = number;
     operacje[0].sem_flg = 0  | flags;
     operacje[0].sem_op = -1;
-    while (true) {
+    int max_tries = 5;
+    while (max_tries > 0) {
         int result = semop(semId, operacje, 1);
 
         if (result == 0) {
             return 1;
         }
         if (errno == EINTR) {
+            max_tries--;
             continue;
         }
-        perror("semop");
+        if (errno == EIDRM || errno == EINVAL) {
+            PRINT_ERROR( "Semafor został usunięty lub nieprawidłowy\n");
+            return -1;
+        }
+        PRINT_ERROR("semop");
+
         return -1;
     }
+    return 0;
 }
 
 void signal_semaphore(int semID, int number) {
@@ -91,7 +104,8 @@ void signal_semaphore(int semID, int number) {
     operacje[0].sem_num = number;
     operacje[0].sem_op = 1;
     if (semop(semID, operacje, 1) == -1 )
-        perror("semop SIGNAL ");
+        PRINT_ERROR("semop");
+
 }
 
 int read_semaphore(int semID, int number) {
