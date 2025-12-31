@@ -3,7 +3,13 @@
 
 static volatile sig_atomic_t ewakuacja = 0;
 static volatile sig_atomic_t zatrzymano = 0;
-
+park_wspolne* g_park = nullptr;
+SimTime getTime() {
+    wait_semaphore(g_park->park_sem,0,0);
+    SimTime curTime = g_park->czas_w_symulacji;
+    signal_semaphore(g_park->park_sem,0);
+    return curTime;
+}
 void sig1handler(int sig) {
     printf("Otrzymano sygnal zatrzymania atrakcji sygnał %d!\n", sig);
    zatrzymano =  1;
@@ -43,11 +49,13 @@ int main(int argc, char* argv[]) {
     }
     printf("[PRACOWNIK-%d] Start obsługi atrakcji: %s (PID: %d)\n",
          nr_atrakcji, atrakcje[nr_atrakcji].nazwa, getpid());
-    park_wspolne* g_park = attach_to_shared_block();
-    struct msqid_ds buf;
-    memset(&buf, 0, sizeof(buf));
+    g_park = attach_to_shared_block();
+    struct msqid_ds buf{};
+
     ACKmes mes;
     int wejscieDoAtrakcji = g_park->pracownicy_keys[nr_atrakcji];
+    msgctl(wejscieDoAtrakcji, IPC_STAT, &buf);
+
     int iloscWagonikow = atrakcje[nr_atrakcji].limit_osob/ atrakcje[nr_atrakcji].po_ile_osob_wchodzi;
     czasy czasyJazdy[iloscWagonikow];
     for (int i = 0; i < iloscWagonikow; i++) {
@@ -56,7 +64,16 @@ int main(int argc, char* argv[]) {
 
     }
 
-    while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
+    while (true) {
+        msgctl(wejscieDoAtrakcji, IPC_STAT, &buf);
+        wait_semaphore(g_park->park_sem, 0, 0);
+            int licznik_klientow = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
+            bool otwarty = g_park->park_otwarty;
+        signal_semaphore(g_park->park_sem, 0);
+        if (licznik_klientow == 0 && !otwarty ) {
+            break;
+        }
+
         if (zatrzymano) {
             printf("zatrzymano na %d\n", nr_atrakcji);
             fflush(stdout);
@@ -70,13 +87,13 @@ int main(int argc, char* argv[]) {
                     }
                     czasyJazdy[i].pids.clear();
                     czasyJazdy[i].zajete = false;
+                    czasyJazdy[i].czasJazdy = SimTime(0, 0);
 
                 }
 
             }
             ACKmes mes_queue;
             while (msgrcv(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0, IPC_NOWAIT) != -1) {
-                printf("odpowiadam na %d\n", mes.ack);
                 fflush(stdout);
 
                 mes_queue.mtype = mes_queue.ack;
@@ -85,47 +102,48 @@ int main(int argc, char* argv[]) {
             }
 
             if (ewakuacja) {
-                printf("zamykam sie\n");
                 fflush(stdout);
 
                 signal(SIGINT, SIG_DFL);
                 raise(SIGINT);
             }
         }
-
-        SimTime curTime = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute);
+            SimTime curTime = getTime();
             while (msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 99, IPC_NOWAIT) != -1) {
-                if (zatrzymano) {
-                    mes.mtype = mes.ack;
-                    mes.ack = -2;
-                    msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0); //potwierdzenie
-                    printf("Wyrzucam z kolejki w atrakcji %d", nr_atrakcji);
-                    usleep(10000);
-                    continue;
-                }
+
                 auto it = std::find(czasyJazdy[mes.wagonik].pids.begin(),
                     czasyJazdy[mes.wagonik].pids.end(), mes.ack);
                 if (it != czasyJazdy[mes.wagonik].pids.end()) {
                     czasyJazdy[mes.wagonik].pids.erase(it);
                 }
                 mes.mtype = mes.ack;
+                if (zatrzymano) {
+                    printf("Wyrzucam z kolejki w atrakcji %d", nr_atrakcji);
+                    usleep(10000);
+                    mes.ack = -2;
+                }
                 msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0); //potwierdzenie
-                printf("Klient %d zrezygnowal z %s w wagoniku %d\n", mes.ack, atrakcje[nr_atrakcji].nazwa, mes.wagonik);
+                //printf("Klient %d zrezygnowal z %s w wagoniku %d\n", mes.ack, atrakcje[nr_atrakcji].nazwa, mes.wagonik);
             }
             for (int i = 0; i < iloscWagonikow; i++) {
                 if (czasyJazdy[i].zajete==false) {continue;}
-                if (czasyJazdy[i].czasJazdy.hour < curTime.hour || (czasyJazdy[i].czasJazdy.hour == curTime.hour && czasyJazdy[i].czasJazdy.minute <= curTime.minute)) {
+                if (zatrzymano || czasyJazdy[i].czasJazdy.hour < curTime.hour || (czasyJazdy[i].czasJazdy.hour == curTime.hour && czasyJazdy[i].czasJazdy.minute <= curTime.minute)) {
 
                     czasyJazdy[i].czasJazdy = SimTime(0,0);
                     czasyJazdy[i].zajete = false;
                     for (int j=0; j < czasyJazdy[i].pids.size(); j++) {
                         mes.mtype = czasyJazdy[i].pids[j];
                         mes.ack = 0;
+                        if (zatrzymano) {
+                            mes.ack = -2;
+                        }
                         msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0);
                     }
                     czasyJazdy[i].pids.clear();
+
+                    curTime = getTime();
                     printf("Pracownik-%d zatrzymuje atrakcje %s, o godzinie %02d:%02d w wagoniku %d\n", nr_atrakcji, atrakcje[nr_atrakcji].nazwa
-                ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute, i);
+                ,curTime.hour, curTime.minute, i);
                     fflush(stdout);
 
 
@@ -133,9 +151,8 @@ int main(int argc, char* argv[]) {
 
             }
         int freeCart = znajdzWolnyWagonik(czasyJazdy, iloscWagonikow);
-        msgctl(wejscieDoAtrakcji, IPC_STAT, &buf);
 
-        if (freeCart != -1) {
+        if (freeCart != -1 && !zatrzymano) {
             czasy nowa_jazda;
             nowa_jazda.pids.clear();
             nowa_jazda.zajete = false;
@@ -156,21 +173,25 @@ int main(int argc, char* argv[]) {
 
             }
             if (nowa_jazda.pids.empty()) {continue;}
-            nowa_jazda.czasJazdy = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute) + SimTime(0,atrakcje[nr_atrakcji].czas_trwania_min);
+            curTime = getTime();
+            nowa_jazda.czasJazdy = SimTime(curTime.hour, curTime.minute) + SimTime(0,atrakcje[nr_atrakcji].czas_trwania_min);
             nowa_jazda.zajete = true;
             czasyJazdy[freeCart] = nowa_jazda;
             int zajete = atrakcje[nr_atrakcji].po_ile_osob_wchodzi - wolne_miejsca;
 
-            printf("Pracownik-%d rozpoczyna atrakcje %s, o godzinie %02d:%02d| Ilosc osob: %d | grup %d | wagon %d\n", nr_atrakcji, atrakcje[nr_atrakcji].nazwa
-        ,g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute,zajete, (int)nowa_jazda.pids.size(), freeCart);
-            fflush(stdout);
+            //printf("Pracownik-%d rozpoczyna atrakcje %s, o godzinie %02d:%02d| Ilosc osob: %d | grup %d | wagon %d\n", nr_atrakcji, atrakcje[nr_atrakcji].nazwa
+        //,curTime.hour, curTime.minute,zajete, (int)nowa_jazda.pids.size(), freeCart);
+        //    fflush(stdout);
 
         }
 
         usleep(10000);
-
+        if (!g_park->park_otwarty) {
+            printf("pracownik dalej pracuje %s", atrakcje[nr_atrakcji].nazwa);
+            fflush(stdout);
         }
-    printf("Pracownik zkonczyl prace /n");
+        }
+    printf("Pracownik zkonczyl prace atrakcja %s \n", atrakcje[nr_atrakcji].nazwa);
     fflush(stdout);
 
     detach_from_shared_block(g_park);

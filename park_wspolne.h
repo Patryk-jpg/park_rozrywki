@@ -92,7 +92,7 @@ struct park_wspolne {
     int licznik_klientow;
     int pracownicy_keys[17];
     int czas_sem;
-    int licznik_sem;
+    int park_sem;
 
 };
 // Parametry atrakcji
@@ -184,7 +184,7 @@ struct payment_message {
     int czasWRestauracji;
     float suma;
     int wiekDziecka;
-
+    SimTime czasWyjscia;
 };
 struct biletInfo {
     int cena;

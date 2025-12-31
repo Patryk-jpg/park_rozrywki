@@ -109,10 +109,25 @@ void zakoncz_pracownikow() {
             printf("[PARK] Pracownik %zu (PID: %d) zakonczył pracę\n", i, pid);
         }
     }
+    printf("[PARK] Usuwam kolejki pracowników...\n");
+    for (int i = 0; i < LICZBA_ATRAKCJI - 1; i++) {
+        int kolejka_id = g_park->pracownicy_keys[i];
+        if (kolejka_id > 0) {
+            if (msgctl(kolejka_id, IPC_RMID, NULL) == -1) {
+                perror("msgctl IPC_RMID podczas zakończenia pracowników");
+            } else {
+                printf("[PARK] Usunięto kolejkę atrakcji %d\n", i);
+            }
+            wait_semaphore(g_park->park_sem,0,0);
+            g_park->pracownicy_keys[i] = -1;  // Oznacz jako nieważną
+            signal_semaphore(g_park->park_sem,0);
+        }
+    }
 
 }
 
 int   main() {
+    init_random();
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = sig3handler;
@@ -145,13 +160,13 @@ int   main() {
     g_park->park_otwarty = true;
     g_park->czas_w_symulacji.hour = CZAS_OTWARCIA;
     g_park->czas_w_symulacji.minute = 0;
-    int licznik_sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED + 2);
+    int park_sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED + 2);
     int czas_sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED + 3);
-    int licznik_sem = allocate_semaphore(licznik_sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
+    int park_sem = allocate_semaphore(park_sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
     int czas_sem = allocate_semaphore(czas_sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
-    initialize_semaphore(licznik_sem, 0, 1);
+    initialize_semaphore(park_sem, 0, 1);
     initialize_semaphore(czas_sem, 0, 1);
-    g_park->licznik_sem = licznik_sem;
+    g_park->park_sem = park_sem;
     g_park->czas_sem = czas_sem;
     int sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED);
     int licznik_klientow = allocate_semaphore(sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
@@ -162,28 +177,38 @@ int   main() {
     uruchom_pracownikow();
     uruchom_kase();
     uruchom_kase_restauracji();
-    while (g_park->park_otwarty || MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0) != 0) {
+    while (true) {
 
-        // int licznik_klientow= MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
-        // if (licznik_klientow != 0) {
-        //     break;
-        // }
+        wait_semaphore(g_park->park_sem,0,0);
+            int licznik_klientow = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
+            bool otwarty = g_park->park_otwarty;
+        signal_semaphore(g_park->park_sem,0);
+        if (licznik_klientow == 0 && !otwarty) {
+            break;
+        }
+
         if (signal3) {
             printf("\n[PARK] *** EWAKUACJA - ZAMYKAM PARK ***\n");
-            g_park->park_otwarty = false;
+            wait_semaphore(g_park->park_sem,0,0);
+                g_park->park_otwarty = false;
+            signal_semaphore(g_park->park_sem,0);
             zakoncz_pracownikow();
             break;
         }
-        usleep(50000);
-        g_park->czas_w_symulacji.increment_minute();
-        //g_park->czas_w_symulacji.print();
-        // printf("Aktualni ludzie w parku %d, \n", MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0));
-        fflush(stdout);
-        if (g_park->czas_w_symulacji.hour >= CZAS_ZAMKNIECIA) {
 
-            g_park->park_otwarty = false;
-        }
-        if ((rand() % 100 > 40) && (g_park->park_otwarty) && (!signal3)) {
+        wait_semaphore(g_park->park_sem,0,0);
+            g_park->czas_w_symulacji.increment_minute();
+            //g_park->czas_w_symulacji.print();
+            // printf("Aktualni ludzie w parku %d, \n", MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0));
+            fflush(stdout);
+            if (g_park->czas_w_symulacji.hour >= CZAS_ZAMKNIECIA) {
+
+                g_park->park_otwarty = false;
+            }
+            otwarty = g_park->park_otwarty;
+        signal_semaphore(g_park->park_sem,0);
+
+        if ((random_chance(40)) && (otwarty) && (!signal3)) {
             pid_t pid = fork();
             if (pid == 0) {
                 char* args[] = { (char*)"klient", NULL };
@@ -193,9 +218,11 @@ int   main() {
 
             }
         }
+        usleep(5000);
+
     }
 
-
+    zakoncz_pracownikow();
     poczekaj_na_kasy();
     printf("[PARK] Zbieranie pozostałych procesów...\n");
     int status;
@@ -207,20 +234,13 @@ int   main() {
     if (msgctl(kasa_id, IPC_RMID, NULL) == -1) {
         perror("msgctl IPC_RMID kasa");
     }
-    for (int i = 0; i < LICZBA_ATRAKCJI - 1; i++) {
-        int kolejka_id = g_park->pracownicy_keys[i];
-        if (kolejka_id > 0) {
-            if (msgctl(kolejka_id, IPC_RMID, NULL) == -1) {
-                perror("msgctl IPC_RMID pracownicy msqueue");
-            }
-        }
-    }
+
 
     printf("PARK ZAMKNIETY");
     printf("Sprzątanie zasobów...\n");
     free_semaphore(g_park->licznik_klientow, 0);
     free_semaphore(g_park->czas_sem, 0);
-    free_semaphore(g_park->licznik_sem, 0);
+    free_semaphore(g_park->park_sem, 0);
 
     detach_from_shared_block(g_park);
     destroy_shared_block((char*)SEED_FILENAME_PARK);

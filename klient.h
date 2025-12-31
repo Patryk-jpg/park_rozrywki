@@ -17,7 +17,7 @@ public:
     pid_t pidKlienta;
     SimTime czasWejscia;
     SimTime czasWyjscia;
-    SimTime czasWRestauracji;
+    int czasWRestauracji;
     int typ_biletu;
     int cena;
     bool wParku = false;

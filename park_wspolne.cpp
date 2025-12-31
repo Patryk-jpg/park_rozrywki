@@ -6,6 +6,7 @@
 
 using namespace std;
 
+
 int get_shared_block_id() {
     key_t key;
     key = ftok(SEED_FILENAME_PARK, PARK_SEED);
@@ -71,11 +72,18 @@ int wait_semaphore(int semId, int number, int flags) {
     operacje[0].sem_num = number;
     operacje[0].sem_flg = 0  | flags;
     operacje[0].sem_op = -1;
-    if (semop(semId, operacje, 1) == -1) {
+    while (true) {
+        int result = semop(semId, operacje, 1);
+
+        if (result == 0) {
+            return 1;
+        }
+        if (errno == EINTR) {
+            continue;
+        }
         perror("semop");
         return -1;
     }
-    return 1;
 }
 
 void signal_semaphore(int semID, int number) {

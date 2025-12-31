@@ -8,6 +8,7 @@
 park_wspolne* g_park = nullptr;
 
 int update_licznik_klientow(klient_message& request) {
+    wait_semaphore(g_park->park_sem,0,0);
     int zajete = 0;
     for (int i = 0; i < request.ilosc_osob; i++) {
         if (wait_semaphore(g_park->licznik_klientow, 0, IPC_NOWAIT) == -1) {
@@ -20,9 +21,11 @@ int update_licznik_klientow(klient_message& request) {
         for (int i = 0; i < zajete; i++) {
             signal_semaphore(g_park->licznik_klientow, 0);
         }
+        signal_semaphore(g_park->park_sem,0);
         return -1;
     }else {
-       return  0;
+        signal_semaphore(g_park->park_sem,0);
+        return  0;
     }
 }
 
@@ -41,26 +44,33 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         msgctl(kasaId, IPC_STAT, &buf);
-        int klienci_w_parku = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
-        if (!g_park->park_otwarty && klienci_w_parku == 0 && buf.msg_qnum == 0) {
+        wait_semaphore(g_park->park_sem, 0, 0);
+            int klienci_w_parku = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
+            bool otwarty = g_park->park_otwarty;
+        signal_semaphore(g_park->park_sem, 0);
+
+        if (!otwarty && klienci_w_parku == 0 && buf.msg_qnum == 0) {
             break;
-    }
+        }
         klient_message request{};
         serwer_message reply{};
         payment_message payment_request{};
+
         size_t wychodzacy = msgrcv(kasaId, &payment_request, sizeof(payment_request) - sizeof(long), 101, IPC_NOWAIT);
+
         if (wychodzacy != -1) {
+
             float total = 0.0f;
             float koszt_r = 0.0f;
             float doplata = 0.0f;
             float kwPodstawowa = clients_pids[payment_request.pid].cena;
-
-
             koszt_r = oblicz_koszt_restauracji(payment_request.czasWRestauracji) *  clients_pids[payment_request.pid].ilosc_osob;
             bool czyVIP = (clients_pids[payment_request.pid].typ_biletu == 4);
 
             if (!czyVIP) {
-                int czasNadmiarowy = g_park->czas_w_symulacji.toMinutes() - clients_pids[payment_request.pid].end_biletu.toMinutes();
+                wait_semaphore(g_park->park_sem, 0, 0);
+                    int czasNadmiarowy = g_park->czas_w_symulacji.toMinutes() - clients_pids[payment_request.pid].end_biletu.toMinutes();
+                signal_semaphore(g_park->park_sem, 0);
                 if (czasNadmiarowy > 0) {
                     float cenaZaNadmiarowaMinute = ((float)kwPodstawowa / (bilety[clients_pids[payment_request.pid].typ_biletu].czasTrwania * 60.0f)) * 2.0f;
                     doplata =  cenaZaNadmiarowaMinute * czasNadmiarowy;
@@ -76,7 +86,9 @@ int main(int argc, char *argv[]) {
             printf("Koszt biletu: %.2f zł Osób: %d \n", kwPodstawowa, clients_pids[payment_request.pid].ilosc_osob);
             printf("Koszt restauracji:   %.2f zł (%d min)\n",
             koszt_r, payment_request.czasWRestauracji);
-            int czasNadmiarowy = g_park->czas_w_symulacji.toMinutes() - clients_pids[payment_request.pid].end_biletu.toMinutes();
+            wait_semaphore(g_park->park_sem, 0, 0);
+                 int czasNadmiarowy = g_park->czas_w_symulacji.toMinutes() - clients_pids[payment_request.pid].end_biletu.toMinutes();
+            signal_semaphore(g_park->park_sem, 0);
             printf("Dopłata za czas:     %.2f zł (%d min)\n", doplata, czasNadmiarowy);
             printf("----------------------------------------\n");
             printf("SUMA:                %.2f zł\n", total);
@@ -100,16 +112,19 @@ int main(int argc, char *argv[]) {
         }
         reply.mtype = request.pid_klienta;
         reply.cena = request.ilosc_biletow * bilety[request.typ_biletu].cena;
-        reply.start_biletu = g_park->czas_w_symulacji;
+        wait_semaphore(g_park->park_sem, 0, 0);
+            reply.end_biletu = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute) + SimTime(bilety[request.typ_biletu].czasTrwania,0);
+            reply.start_biletu = g_park->czas_w_symulacji;
+        signal_semaphore(g_park->park_sem, 0);
         reply.typ_biletu = request.typ_biletu;
-        reply.end_biletu = SimTime(g_park->czas_w_symulacji.hour, g_park->czas_w_symulacji.minute) + SimTime(bilety[request.typ_biletu].czasTrwania,0);
         reply.ilosc_osob = request.ilosc_osob;
-
         clients_pids[request.pid_klienta] = reply;
         reply.status = update_licznik_klientow(request);
-        if (!g_park->park_otwarty) {
-            reply.status = -1;
-        }
+        wait_semaphore(g_park->park_sem, 0, 0);
+            if (!g_park->park_otwarty) {
+                reply.status = -1;
+            }
+        signal_semaphore(g_park->park_sem, 0);
         msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
 
     }
@@ -124,7 +139,7 @@ int main(int argc, char *argv[]) {
     printf("========================================\n");
     fflush(stdout);
 
-    usleep(10000);
+    usleep(1000);
 
     // if (msgctl(kasaId, IPC_RMID, NULL) == -1) {
     //     perror("msgctl IPC_RMID kasa");
