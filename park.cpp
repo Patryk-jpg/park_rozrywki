@@ -113,7 +113,7 @@ void zakoncz_pracownikow() {
         }
     }
     printf("[PARK] Usuwam kolejki pracowników...\n");
-    for (int i = 0; i < LICZBA_ATRAKCJI - 1; i++) {
+    for (int i = 0; i < LICZBA_ATRAKCJI; i++) {
         int kolejka_id = g_park->pracownicy_keys[i];
         if (kolejka_id > 0) {
             if (msgctl(kolejka_id, IPC_RMID, NULL) == -1) {
@@ -173,7 +173,7 @@ int   main() {
     g_park->czas_sem = czas_sem;
     int sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED);
     int licznik_klientow = allocate_semaphore(sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
-    for (int i = 0; i < (sizeof(atrakcje) / sizeof(atrakcje[0]))-1; i++) {
+    for (int i = 0; i < LICZBA_ATRAKCJI; i++) {
         g_park->pracownicy_keys[i] = create_message_queue(SEED_FILENAME_QUEUE, i, 0600);
     }
     g_park->licznik_klientow = licznik_klientow;
