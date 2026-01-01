@@ -269,17 +269,17 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
             if (ewakuacja) return -3;
             usleep(50000);
         }
-        return mes.ack;
-    }
-    // Normalne zakończenie atrakcji
-    while (true) {
-        ssize_t result = msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
-                                g_klient.pidKlienta, IPC_NOWAIT);
-        if (result != -1) break;
-        if (ewakuacja) return -3;
-        usleep(50000);
-    }
 
+    }else {
+        // Normalne zakończenie atrakcji
+        while (true) {
+            ssize_t result = msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
+                                    g_klient.pidKlienta, IPC_NOWAIT);
+            if (result != -1) break;
+            if (ewakuacja) return -3;
+            usleep(50000);
+        }
+    }
     if (nr_atrakcji == 16) {
         SimTime czas_zakonczenia = getTime();
         int czas_pobytu = czas_zakonczenia.toMinutes() - czas_rozpoczecia.toMinutes();
@@ -289,7 +289,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
 
         printf("Klient %d: był w restauracji %d min (łącznie: %d min)\n",
                    identifier, czas_pobytu, g_klient.czasWRestauracji);
-
+        fflush(stdout);
         // Jeśli poza parkiem - płać od razu
         if (!g_klient.wParku) {
             zaplac_za_restauracje_z_zewnatrz(czas_pobytu);

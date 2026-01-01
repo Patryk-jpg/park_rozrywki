@@ -96,7 +96,7 @@ void uruchom_pracownikow() {
 }
 
 void sig3handler(int sig) {
-    printf("Otrzymano sygnal totalnej ewakuacji i zamkniecia (3) sygnał %d!\n", sig);
+    //printf("Otrzymano sygnal totalnej ewakuacji i zamkniecia (3) sygnał %d!\n", sig);
     signal3 = 1;
 
 }
@@ -245,8 +245,9 @@ int   main() {
             }
         }
 
-        usleep(5000);
+        usleep(10000);
     }
+
     printf("\n[PARK] Zamykam park...\n");
     zakoncz_pracownikow();
     poczekaj_na_kasy();
@@ -254,8 +255,8 @@ int   main() {
     g_park->park_otwarty = false;
     signal_semaphore(g_park->park_sem,0);
     printf("[PARK] Zbieranie pozostałych procesów...\n");
-    //signal(SIGTERM, SIG_IGN);
-    //kill(0, SIGTERM); // Sends signal to all processes in the current PGID
+    signal(SIGTERM, SIG_IGN);
+    kill(0, SIGTERM); // Sends signal to all processes in the current PGID
     int status;
     while (wait(&status) > 0) {
     }
