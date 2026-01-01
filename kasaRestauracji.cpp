@@ -3,10 +3,10 @@
 #include "kasaRestauracji.h"
 
 park_wspolne* g_park = nullptr;
-static volatile sig_atomic_t ewakuacja = 0;
+static volatile sig_atomic_t zakonczenie = 0;
 
 void sig3handler(int sig) {
-    ewakuacja = 1;
+    zakonczenie = 1;
 }
 
 int main(int argc, char* argv[]) {
@@ -33,8 +33,8 @@ int main(int argc, char* argv[]) {
     msgctl(kasa_rest_id, IPC_STAT, &buf);
 
     while (true) {
-        if (ewakuacja) {
-            printf("Otrzymano sygnał ewakuacji, zamykam kasę restauracji\n");
+        if (zakonczenie) {
+            printf("Otrzymano sygnał zakonczenia, zamykam kasę restauracji\n");
             break;
         }
         msgctl(kasa_rest_id, IPC_STAT, &buf);
@@ -43,11 +43,7 @@ int main(int argc, char* argv[]) {
         bool otwarty = g_park->park_otwarty;
         signal_semaphore(g_park->park_sem, 0);
 
-        // Zamknij jeśli park zamknięty i kolejka pusta
-        if (!otwarty && buf.msg_qnum == 0) {
-            printf("Park zamknięty, kolejka pusta - zamykam kasę restauracji\n");
-            break;
-        }
+
         // Sprawdź czy są klienci w kolejce
         if (buf.msg_qnum == 0) {
             usleep(10000); // 10ms
@@ -81,6 +77,11 @@ int main(int argc, char* argv[]) {
         msg.mtype = msg.pid_klienta;
         msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
 
+        // Zamknij jeśli park zamknięty i kolejka pusta
+        if (!otwarty && buf.msg_qnum == 0 && zakonczenie) {
+            printf("Park zamknięty, kolejka pusta - zamykam kasę restauracji\n");
+            break;
+        }
     }
 
     printf("\n[KASA RESTAURACJI] Zamykam kasę\n");

@@ -5,6 +5,7 @@
 // GLOBALNE
 park_wspolne* g_park = nullptr;
 std::vector<pid_t> pracownicy_pids;
+std::vector<pid_t> klienci_pids;
 pid_t kasa_pid = -1;
 pid_t kasa_rest_pid = -1;
 int kasa_rest_id =  -1;
@@ -16,21 +17,22 @@ void poczekaj_na_kasy() {
     printf("[PARK] Czekam na zakończenie kas...\n");
     if (signal3) {
         if (kasa_pid > 0) kill(kasa_pid, SIGUSR1);
-        if (kasa_rest_pid > 0) kill(kasa_rest_pid, SIGUSR1);
     }
     if (kasa_pid > 0) {
         int status;
         printf("[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
         pid_t result = waitpid(kasa_pid, &status, 0);
         if (result > 0) {
+
             printf("[PARK] Kasa główna zakończona\n");
         } else {
             perror("waitpid kasa");
         }
     }
-
     if (kasa_rest_pid > 0) {
         int status;
+        kill(kasa_rest_pid, SIGUSR1); // SYGNAL do zatrzymania kasy (zeby nie konczyla sie zbyt szybko sama, przez malo osob w restauracji
+
         printf("[PARK] Czekam na kasę restauracji (PID: %d)...\n", kasa_rest_pid);
         pid_t result = waitpid(kasa_rest_pid, &status, 0);
         if (result > 0) {
@@ -100,7 +102,7 @@ void sig3handler(int sig) {
     signal3 = 1;
 
 }
-void zakoncz_pracownikow() {
+void poczekaj_na_pracownikow() {
 
     printf("[PARK] Czekam na zakonczenie pracowników...\n");
     for (size_t i = 0; i <  pracownicy_pids.size(); i++) {
@@ -127,6 +129,23 @@ void zakoncz_pracownikow() {
     }
 
 }
+
+void poczekaj_na_klientow() {
+
+
+    printf("[PARK] Czekam na zakonczenie klientów...\n");
+    for (size_t i = 0; i <  klienci_pids.size(); i++) {
+        int status;
+        pid_t pid = waitpid(klienci_pids[i], &status, 0);
+        if (pid > 0) {
+            printf("[PARK] klient %zu (PID: %d) nie żyje\n", i, pid);
+        }
+    }
+};
+
+
+
+
 
 int   main() {
 
@@ -242,21 +261,25 @@ int   main() {
                 _exit(1);
             } else if (pid > 0) {
                 total_klientow++;
+                klienci_pids.push_back(pid);
             }
         }
 
         usleep(10000);
     }
 
-    printf("\n[PARK] Zamykam park...\n");
-    zakoncz_pracownikow();
-    poczekaj_na_kasy();
     wait_semaphore(g_park->park_sem,0,0);
     g_park->park_otwarty = false;
     signal_semaphore(g_park->park_sem,0);
+
+    printf("\n[PARK] Zamykam park...\n");
+    poczekaj_na_klientow();
+    poczekaj_na_pracownikow();
+    poczekaj_na_kasy();
+
     printf("[PARK] Zbieranie pozostałych procesów...\n");
-    signal(SIGTERM, SIG_IGN);
-    kill(0, SIGTERM); // Sends signal to all processes in the current PGID
+    // signal(SIGTERM, SIG_IGN);
+    // kill(0, SIGTERM); // Sends signal to all processes in the current PGID
     int status;
     while (wait(&status) > 0) {
     }

@@ -125,17 +125,7 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        msgctl(kasaId, IPC_STAT, &buf);
-        wait_semaphore(g_park->park_sem, 0, 0);
-        int klienci_w_parku = g_park->clients_count;
-        bool otwarty = g_park->park_otwarty;
-        signal_semaphore(g_park->park_sem, 0);
 
-        if (!otwarty && klienci_w_parku == 0 && buf.msg_qnum == 0) {
-            printf("Park zamknięty, brak klientów, zamykam kasę\n");
-            fflush(stdout);
-            break;
-        }
 
         payment_message payment_request{};
         ssize_t wychodzacy = msgrcv(kasaId, &payment_request,
@@ -195,13 +185,26 @@ int main(int argc, char *argv[]) {
         klient_message request{};
         serwer_message reply{};
 
-        size_t n = msgrcv(kasaId, &request, sizeof(request) - sizeof(long), -10, IPC_NOWAIT);
 
+        msgctl(kasaId, IPC_STAT, &buf);
+        wait_semaphore(g_park->park_sem, 0, 0);
+        int klienci_w_parku = g_park->clients_count;
+        bool otwarty = g_park->park_otwarty;
+        signal_semaphore(g_park->park_sem, 0);
+
+        if (!otwarty && klienci_w_parku == 0 && buf.msg_qnum == 0) {
+            printf("Park zamknięty, brak klientów, zamykam kasę\n");
+            fflush(stdout);
+            break;
+        }
+        //printf("KASA widzi %d klientow w parku", klienci_w_parku);
+
+        // WPUSZAJ DO PARKU
+        size_t n = msgrcv(kasaId, &request, sizeof(request) - sizeof(long), -10, IPC_NOWAIT);
         if (n == -1) {
             usleep(1000);
             continue;
         }
-
          reply.mtype = request.pid_klienta;
         reply.typ_biletu = request.typ_biletu;
         reply.ilosc_osob = request.ilosc_osob;
@@ -234,8 +237,10 @@ int main(int argc, char *argv[]) {
         msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
         if (reply.status == 0) {
             clients_pids[request.pid_klienta] = reply;
-
-            printf("Klient %d kupił bilet %s (%.2f zł), osób: %d, ważny do %02d:%02d\n",
+            wait_semaphore(g_park->park_sem, 0, 0);
+            SimTime curtime = g_park->czas_w_symulacji;
+            signal_semaphore(g_park->park_sem, 0);
+            printf("%02d:%02d - Klient %d kupił bilet %s (%.2f zł), osób: %d, ważny do %02d:%02d\n",curtime.hour,curtime.minute,
                      request.pid_klienta, bilety[request.typ_biletu].nazwa,
                      reply.cena, request.ilosc_osob,
                      reply.end_biletu.hour, reply.end_biletu.minute);
@@ -243,6 +248,8 @@ int main(int argc, char *argv[]) {
             printf("Klient %d ODRZUCONY (park pełny lub zamknięty)\n", request.pid_klienta);
         }
         fflush(stdout);
+
+
     }
 
     printf("\n[KASA] Zamykam kasę\n");

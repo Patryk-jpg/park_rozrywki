@@ -183,8 +183,10 @@ int main(int argc, char* argv[]) {
 
                     if (it != czasyJazdy[mes.wagonik].pids.end()) {
                         czasyJazdy[mes.wagonik].pids.erase(it);
-                        printf("Klient %d zrezygnował z %s (wagonik %d)\n",
+                        SimTime curtime = getTime();
+                        printf("%02d:%02d,Klient %d zrezygnował z %s (wagonik %d)\n", curtime.hour, curtime.minute,
                                      mes.ack, atrakcje[nr_atrakcji].nazwa, mes.wagonik);
+                        fflush(stdout);
                     }
                 }
                 // Potwierdź rezygnację
@@ -198,7 +200,7 @@ int main(int argc, char* argv[]) {
             for (int i = 0; i < iloscWagonikow; i++) {
                 if (czasyJazdy[i].zajete==false) {continue;}
 
-                if (curTime >= czasyJazdy[i].czasJazdy) {
+                if (curTime >= czasyJazdy[i].czasJazdy || !g_park->park_otwarty) {
                     for (pid_t pid : czasyJazdy[i].pids) {
                         ACKmes mes_out;
                         mes_out.mtype = pid;
