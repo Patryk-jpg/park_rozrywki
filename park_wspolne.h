@@ -1,6 +1,3 @@
-//
-// Created by janik on 11/12/2025.
-//
 #pragma once
 #define PRINT_ERROR(msg) print_error_impl(__FILE__, __LINE__, __func__, msg)
 
@@ -22,24 +19,41 @@
 #include <cstring>
 #include <cstdarg>
 #include <iostream>
+
+// STAŁE KONFIGURACYJNE
 #define MAX_KLIENTOW_W_PARKU 100
 #define CZAS_OTWARCIA 8
 #define CZAS_ZAMKNIECIA 20
 #define PROCENT_VIP 1
 #define LICZBA_ATRAKCJI 17
+
+// CZASY BILETÓW (w minutach)
 #define BILET_2H 120
 #define BILET_4H 240
 #define BILET_6H 360
 #define BILET_1D 720
+
+// KLUCZE IPC
 #define PARK_SEED 'A'
 #define SEED_FILENAME_PARK "/tmp/sharedfile"
 #define SEED_FILENAME_QUEUE "/tmp/queuefile"
 #define SEED_FILENAME_SEMAPHORES "/tmp/semaphores"
-#define SEZON_LETNI true
 #define QUEUE_SEED 'Q'
 #define SEM_SEED 'S'
 #define QUEUE_REST_SEED 'R'
 #define IPC_ERROR (-1)
+
+
+// ===== TYPY KOMUNIKATÓW =====
+#define MSG_TYPE_VIP_TICKET 1           // VIP - priorytet
+#define MSG_TYPE_STANDARD_TICKET 5      // Zwykły bilet
+#define MSG_TYPE_JOIN_ATTRACTION 100    // Wejście do atrakcji
+#define MSG_TYPE_QUIT_ATTRACTION 99     // Rezygnacja z atrakcji
+#define MSG_TYPE_EXIT_PAYMENT 101       // Płatność przy wyjściu
+
+#define SEZON_LETNI true
+
+// STRUCTY
 struct Atrakcja {
     int nr;
     char nazwa[50];
@@ -55,13 +69,18 @@ struct Atrakcja {
     bool mozna_opuscic;
     bool sezonowa_letnia;
 };
+
+
+
 void print_error_impl(const char* file, int line, const char* func, const std::string& msg);
 
 struct SimTime {
     int hour = 0;
     int minute = 0;
-    SimTime() = default; // default constructor
+
+    SimTime() = default;
     SimTime(int h, int m) : hour(h), minute(m) {}
+
     void increment_minute() {
         minute++;
         if (minute >= 60) {
@@ -70,24 +89,32 @@ struct SimTime {
             if (hour >= 24) hour = 0;
         }
     }
+
     void print() const {
         printf("%02d:%02d\n", hour, minute);
     }
-    int toMinutes() const  {
-    return hour * 60 + minute;
-    }
-    SimTime operator+(const SimTime& other) const;
-    bool operator<=(const SimTime& other) const {
-        if (hour < other.hour) return true;
-        if (hour == other.hour && minute <= other.minute) return true;
-        return false;
-    }
-    bool operator>=(const SimTime& other) const {
-        if (hour > other.hour) return true;
-        if (hour == other.hour && minute >= other.minute) return true;
-        return false;
+
+    int toMinutes() const {
+        return hour * 60 + minute;
     }
 
+    SimTime operator+(const SimTime& other) const;
+
+    bool operator<=(const SimTime& other) const {
+        return toMinutes() <= other.toMinutes();
+    }
+
+    bool operator>=(const SimTime& other) const {
+        return toMinutes() >= other.toMinutes();
+    }
+
+    bool operator<(const SimTime& other) const {
+        return toMinutes() < other.toMinutes();
+    }
+
+    bool operator>(const SimTime& other) const {
+        return toMinutes() > other.toMinutes();
+    }
 };
 
 struct park_wspolne {
@@ -99,10 +126,9 @@ struct park_wspolne {
     int pracownicy_keys[17];
     int czas_sem;
     int park_sem;
-
 };
-// Parametry atrakcji
 
+// Parametry atrakcji
 
 const Atrakcja atrakcje[17] = {
     // A1: Wodna bitwa
@@ -120,7 +146,7 @@ const Atrakcja atrakcje[17] = {
     // A7: Karuzela
     {6, "Karuzela",12, 12, 15, 2, 13, 130, 190, 13, -1, false, false},
     // A8: Kolejka mała
-    {7, "Kolejka mala", 24,24, 15, 0, 999, 100, 999, -1, -1, false, false},
+    {7, "Kolejka mala", 24,24, 15, 0, 999, 100, 999, -1, 120, false, false},
     // A9: Kolejka górska
     {8, "Kolejka gorska", 4,20, 35, 4, 12, 120, 999, 12, -1, false, false},
     // A10: Kolejka smocza
@@ -141,25 +167,7 @@ const Atrakcja atrakcje[17] = {
 
 };
 
-static int get_shared_block_id();
-park_wspolne* attach_to_shared_block();
-bool detach_from_shared_block(park_wspolne* block);
-bool destroy_shared_block(char* filename);
-int join_message_queue(const char* filename, int seed);
-
-int allocate_semaphore(key_t key, int number, int flag);
-int free_semaphore(int SemId, int number);
-void initialize_semaphore(int SemId, int number, int val);
-int wait_semaphore(int semId, int number, int flags);
-void signal_semaphore(int semId, int number);
-int read_semaphore(int semId, int number);
-
-void handler_zamknij_park(int sig);
-
-int create_message_queue(const char* filename, int seed, int msgflg);
-void add_message_to_message_queue();
-void load_message_from_message_queue();
-
+// ===== BILETY =====
 enum typ_biletu {
     BILET2H,
     BILET4H,
@@ -167,52 +175,90 @@ enum typ_biletu {
     BILET1D,
     BILETVIP
 };
-struct klient_message{
-    long mtype;
+
+struct biletInfo {
+    int cena;
+    int czasTrwania;  // w godzinach
+    char nazwa[50];
+};
+
+const biletInfo bilety[5] = {
+    {50, 2, "BILET2H"},
+    {65, 4, "BILET4H"},
+    {85, 6, "BILET6H"},
+    {65, 24, "BILET1D"},
+    {0, 24, "BILETVIP"},
+};
+
+// ===== KOMUNIKATY IPC =====
+
+// Wiadomość od klienta do kasy (zakup biletu)
+struct klient_message {
+    long mtype;                    // 1=VIP, 5=normalny
     int typ_biletu;
     int ilosc_biletow;
     int ilosc_osob;
     pid_t pid_klienta;
 };
 
+// Odpowiedź od kasy do klienta
 struct serwer_message {
-    long mtype;
+    long mtype;                    // PID klienta
     SimTime start_biletu;
     SimTime end_biletu;
     float cena;
     int typ_biletu;
-    int status;
+    int status;                    // 0=OK, -1=błąd
     int ilosc_osob;
 };
+
+// Płatność przy wyjściu
 struct payment_message {
-    long mtype;
+    long mtype;                    // 101=żądanie, PID=odpowiedź
     pid_t pid;
     int czasWRestauracji;
     float suma;
-    int wiekDziecka;
+    int wiekDziecka;              // -1 jeśli brak dziecka
     SimTime czasWyjscia;
 };
-struct biletInfo {
-    int cena;
-    int czasTrwania;
-    char nazwa[50];
-};
 
+// Komunikat do/z atrakcji
 struct ACKmes {
-    long mtype;
-    int ack;
-    int wagonik;
+    long mtype;                    // 100=wejście, 99=rezygnacja, PID=odpowiedź
+    int ack;                       // Status: 0=OK, -1=brak miejsca, -2=zatrzymano, -3=ewakuacja
+    int wagonik;                   // Numer przydzielonego wagonika
     int ilosc_osob;
 };
 
-const biletInfo bilety[5] = {
-{50,2, "BILET2H"},
-    {65, 4, "BILET4H"},
-{85, 6, "BILET6H"},
-{65, 24, "BILET1D"},
-{0, 24, "BILETVIP"},
+// Komunikat restauracji
+struct restauracja_message {
+    long mtype;                    // 1=żądanie, PID=odpowiedź
+    pid_t pid_klienta;
+    int czas_pobytu_min;
+    float kwota;
 };
-void error_check(int id, const std::string& message);
+
+// ===== FUNKCJE POMOCNICZE =====
+
+void print_error_impl(const char* file, int line, const char* func, const std::string& msg);
+
+// IPC - pamięć współdzielona
+int get_shared_block_id();
+park_wspolne* attach_to_shared_block();
+bool detach_from_shared_block(park_wspolne* block);
+bool destroy_shared_block(char* filename);
+
+// IPC - kolejki komunikatów
+int create_message_queue(const char* filename, int seed, int msgflg);
+int join_message_queue(const char* filename, int seed);
+
+// IPC - semafory
+int allocate_semaphore(key_t key, int number, int flag);
+int free_semaphore(int SemId, int number);
+void initialize_semaphore(int SemId, int number, int val);
+int wait_semaphore(int semId, int number, int flags);
+void signal_semaphore(int semId, int number);
+int read_semaphore(int semId, int number);
 
 union semun {
     int val;
@@ -221,14 +267,11 @@ union semun {
     struct seminfo *__buf;
 };
 
+// Obliczanie kosztów
+float oblicz_koszt_restauracji(int czas_min);
 
+// Generator liczb losowych
 #include <random>
-struct restauracja_message {
-    long mtype;
-    pid_t pid_klienta;
-    int czas_pobytu_min;
-    float kwota;
-};
 static std::mt19937 rng;
 
 inline void init_random() {
@@ -244,4 +287,6 @@ inline int random_int(int min, int max) {
 inline bool random_chance(int percent) {
     return random_int(0, 99) < percent;
 }
-float oblicz_koszt_restauracji(int czas_min);
+
+// Sprawdzanie poprawności
+void error_check(int id, const std::string& message);

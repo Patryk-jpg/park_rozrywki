@@ -1,62 +1,83 @@
 
 
 #include "kasaRestauracji.h"
+
+park_wspolne* g_park = nullptr;
 static volatile sig_atomic_t ewakuacja = 0;
+
 void sig3handler(int sig) {
     ewakuacja = 1;
 }
 
 int main(int argc, char* argv[]) {
+
     signal(SIGINT, SIG_IGN);
     struct sigaction sa_int{};
     sa_int.sa_handler = sig3handler;
     sigemptyset(&sa_int.sa_mask);
     sa_int.sa_flags = 0;
     sigaction(SIGUSR1, &sa_int, nullptr);
-    printf("[KASA RESTAURACJI] Uruchamianie...\n");
+
+    printf("[KASA RESTAURACJI] Uruchomiona (PID: %d)\n", getpid());
     fflush(stdout);
+
     init_random();
     g_park = attach_to_shared_block();
-    //signal(SIGINT, SIG_IGN);
 
     int kasa_rest_id = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED);
-    restauracja_message msg;
+
     int licznik_transakcji = 0;
     float suma_przychodow = 0.0f;
+
     struct msqid_ds buf;
     msgctl(kasa_rest_id, IPC_STAT, &buf);
 
-    while (1) {
+    while (true) {
         if (ewakuacja) {
+            printf("Otrzymano sygnał ewakuacji, zamykam kasę restauracji\n");
             break;
         }
         msgctl(kasa_rest_id, IPC_STAT, &buf);
 
-        wait_semaphore(g_park->park_sem,0,0);
-        if (!g_park->park_otwarty && buf.msg_qnum == 0) {
-            signal_semaphore(g_park->park_sem,0);
-            break;  // park zamknięty i kolejka pusta
-        }
-        signal_semaphore(g_park->park_sem,0);
+        wait_semaphore(g_park->park_sem, 0, 0);
+        bool otwarty = g_park->park_otwarty;
+        signal_semaphore(g_park->park_sem, 0);
 
-        if (buf.msg_qnum == 0) {continue;}
-        if (msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 1, IPC_NOWAIT) == -1) {
-            usleep(1000);
+        // Zamknij jeśli park zamknięty i kolejka pusta
+        if (!otwarty && buf.msg_qnum == 0) {
+            printf("Park zamknięty, kolejka pusta - zamykam kasę restauracji\n");
+            break;
+        }
+        // Sprawdź czy są klienci w kolejce
+        if (buf.msg_qnum == 0) {
+            usleep(10000); // 10ms
             continue;
         }
+
+        restauracja_message msg;
+        ssize_t result = msgrcv(kasa_rest_id, &msg,
+                                sizeof(msg) - sizeof(long),
+                                1, IPC_NOWAIT);
+
+        if (result == -1) {
+            usleep(10000);
+            continue;
+        }
+
         msg.kwota = oblicz_koszt_restauracji(msg.czas_pobytu_min);
+
         suma_przychodow += msg.kwota;
         licznik_transakcji++;
-        wait_semaphore(g_park->park_sem,0,0);
-            printf("Klient %d płaci %.2f zł za %d min. (Transakcja %d, o godz  %02d:%02d)\n",
-                  msg.pid_klienta,
-                  msg.kwota,
-                  msg.czas_pobytu_min,
-                  licznik_transakcji,
-                  g_park->czas_w_symulacji.hour,
-                  g_park->czas_w_symulacji.minute);
-            fflush(stdout);
-        signal_semaphore(g_park->park_sem,0);
+
+        wait_semaphore(g_park->park_sem, 0, 0);
+        SimTime curTime = g_park->czas_w_symulacji;
+        signal_semaphore(g_park->park_sem, 0);
+
+        printf("[RESTAURACJA] %02d:%02d - Klient %d: %.2f zł za %d min\n",
+               curTime.hour, curTime.minute,
+               msg.pid_klienta, msg.kwota, msg.czas_pobytu_min);
+        fflush(stdout);
+
         msg.mtype = msg.pid_klienta;
         msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
 

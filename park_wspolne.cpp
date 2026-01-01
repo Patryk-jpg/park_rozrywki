@@ -1,10 +1,7 @@
-//
-// Created by janik on 11/12/2025.
-//
-
 #include "park_wspolne.h"
 
 using namespace std;
+
 void print_error_impl(const char* file, int line, const char* func, const std::string& msg) {
     int error_code = errno; // bieżący kod błędu
     std::cerr << file << ":" << line << " " << func
@@ -75,7 +72,7 @@ int wait_semaphore(int semId, int number, int flags) {
     int result;
     struct sembuf operacje[1];
     operacje[0].sem_num = number;
-    operacje[0].sem_flg = 0  | flags;
+    operacje[0].sem_flg = 0  | SEM_UNDO | flags;
     operacje[0].sem_op = -1;
     int max_tries = 5;
     while (max_tries > 0) {

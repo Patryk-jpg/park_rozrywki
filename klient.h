@@ -1,6 +1,4 @@
-//
-// Created by janik on 11/12/2025.
-//
+
 #pragma once
 
 #include "park_wspolne.h"
