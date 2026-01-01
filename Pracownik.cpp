@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
         msgctl(wejscieDoAtrakcji, IPC_STAT, &buf);
 
         wait_semaphore(g_park->park_sem, 0, 0);
-        int licznik_klientow = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
+        int licznik_klientow = g_park->clients_count;
         bool otwarty = g_park->park_otwarty;
         signal_semaphore(g_park->park_sem, 0);
 

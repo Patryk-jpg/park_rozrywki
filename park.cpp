@@ -166,27 +166,20 @@ int   main() {
     g_park = attach_to_shared_block();
     memset(g_park, 0, sizeof(park_wspolne));
 
-    g_park->pid_parku = getpid();
     g_park->park_otwarty = true;
     g_park->czas_w_symulacji.hour = CZAS_OTWARCIA;
     g_park->czas_w_symulacji.minute = 0;
 
     int park_sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED + 2);
-    int czas_sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED + 3);
     int park_sem = allocate_semaphore(park_sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
-    int czas_sem = allocate_semaphore(czas_sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
     initialize_semaphore(park_sem, 0, 1);
-    initialize_semaphore(czas_sem, 0, 1);
-    int sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED);
-    int licznik_klientow = allocate_semaphore(sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
 
     for (int i = 0; i < LICZBA_ATRAKCJI; i++) {
         g_park->pracownicy_keys[i] = create_message_queue(SEED_FILENAME_QUEUE, i, 0600);
     }
 
-    g_park->licznik_klientow = licznik_klientow;
+    g_park->clients_count =  0;;
     g_park->park_sem = park_sem;
-    g_park->czas_sem = czas_sem;
 
     uruchom_pracownikow();
     uruchom_kase();
@@ -197,7 +190,7 @@ int   main() {
     while (true) {
 
         wait_semaphore(g_park->park_sem,0,0);
-            int licznik_klientow = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
+            int licznik_klientow = g_park->clients_count;
             bool otwarty = g_park->park_otwarty;
             SimTime curTime = g_park->czas_w_symulacji;
 
@@ -221,7 +214,7 @@ int   main() {
         g_park->czas_w_symulacji.increment_minute();
 
         if (g_park->czas_w_symulacji.minute == 0) {
-            int ludzi = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
+            int ludzi = g_park->clients_count;
             printf("[PARK] %02d:00 - Klientów w parku: %d\n",
                    g_park->czas_w_symulacji.hour, ludzi);
             fflush(stdout);
@@ -277,8 +270,6 @@ int   main() {
 
     printf("PARK ZAMKNIETY");
     printf("Sprzątanie zasobów...\n");
-    free_semaphore(g_park->licznik_klientow, 0);
-    free_semaphore(g_park->czas_sem, 0);
     free_semaphore(g_park->park_sem, 0);
 
     detach_from_shared_block(g_park);

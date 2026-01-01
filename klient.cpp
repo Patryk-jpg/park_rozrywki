@@ -154,7 +154,7 @@ void wejdz_do_parku() {
 
     wait_semaphore(g_park->park_sem,0,0);
     SimTime curTime = g_park->czas_w_symulacji;
-    int ludzi_w_parku = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
+    int ludzi_w_parku = g_park->clients_count;
     signal_semaphore(g_park->park_sem,0);
 
     printf("%02d:%02d:Klient %d w parku z biletem %s, wyjdzie o %02d:%02d\n"
@@ -386,11 +386,6 @@ void wyjdz_z_parku() {
     printf("%02d:%02d - Klient %d WYCHODZI z parku, zapłacił %.2f zł\n",
                curTime.hour, curTime.minute, g_klient.pidKlienta, k_msg.suma);
 
-    wait_semaphore(g_park->park_sem, 0, 0);
-    for (int i = 0; i < g_klient.ilosc_osob; i++) {
-        signal_semaphore(g_park->licznik_klientow, 0);
-    }
-    signal_semaphore(g_park->park_sem, 0);
 }
 
 void  zaplac_za_restauracje_z_zewnatrz(int czas_pobytu) {

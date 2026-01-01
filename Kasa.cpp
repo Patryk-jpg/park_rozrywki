@@ -20,19 +20,11 @@ int update_licznik_klientow(klient_message& request) {
         signal_semaphore(g_park->park_sem, 0);
         return -1;
     }
-
-    int zajete = 0;
-    for (int i = 0; i < request.ilosc_osob; i++) {
-        if (wait_semaphore(g_park->licznik_klientow, 0, IPC_NOWAIT) == -1) {
-            // Nie ma miejsca - zwolnij już zajęte
-            for (int j = 0; j < zajete; j++) {
-                signal_semaphore(g_park->licznik_klientow, 0);
-            }
-            signal_semaphore(g_park->park_sem, 0);
-            return -1;
-        }
-        zajete++;
+    if (g_park->clients_count + request.ilosc_osob > MAX_KLIENTOW_W_PARKU ) {
+        signal_semaphore(g_park->park_sem, 0);
+        return -1;
     }
+    g_park->clients_count += request.ilosc_osob;
     signal_semaphore(g_park->park_sem, 0);
     return 0;
 }
@@ -122,9 +114,6 @@ int main(int argc, char *argv[]) {
     // Mapa przechowująca informacje o biletach klientów
     std::map<pid_t, serwer_message> clients_pids;
 
-    // Inicjalizacja semafora licznika klientów
-    initialize_semaphore(g_park->licznik_klientow, 0, MAX_KLIENTOW_W_PARKU);
-
     struct msqid_ds buf;
     msgctl(kasaId, IPC_STAT, &buf);
 
@@ -138,7 +127,7 @@ int main(int argc, char *argv[]) {
 
         msgctl(kasaId, IPC_STAT, &buf);
         wait_semaphore(g_park->park_sem, 0, 0);
-        int klienci_w_parku = MAX_KLIENTOW_W_PARKU - read_semaphore(g_park->licznik_klientow, 0);
+        int klienci_w_parku = g_park->clients_count;
         bool otwarty = g_park->park_otwarty;
         signal_semaphore(g_park->park_sem, 0);
 
@@ -190,8 +179,16 @@ int main(int argc, char *argv[]) {
             zarobki += total;
             transakcje++;
 
+            //zmniejsz licznik
+            wait_semaphore(g_park->park_sem, 0, 0);
+            g_park->clients_count -= clients_pids[payment_request.pid].ilosc_osob;
+            signal_semaphore(g_park->park_sem, 0);
+
             // Usuń z mapy
+
             clients_pids.erase(payment_request.pid);
+
+
 
         }
 
