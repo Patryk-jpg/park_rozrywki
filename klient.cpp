@@ -1,5 +1,4 @@
 
-#include "park_wspolne.h"
 #include "klient.h"
 #include <pthread.h>
 #include <unistd.h>
@@ -9,6 +8,7 @@
 static volatile sig_atomic_t ewakuacja = 0;
 park_wspolne* g_park = nullptr;
 static klient g_klient;
+std::vector<int> anulowalne = {0, 1, 2, 3, 4, 12, 13, 14, 15, 16}; // Indeksy A1-A5, A13-A17
 
 // SIG HANDLERS
 
@@ -243,7 +243,6 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
                   identifier, atrakcje[nr_atrakcji].nazwa, moj_wagonik);
 
     // Decyzja czy zrezygnować (10% szans dla dozwolonych atrakcji)
-    std::vector<int> anulowalne = {0, 1, 2, 3, 4, 12, 13, 14, 15, 16}; // Indeksy A1-A5, A13-A17
     bool czyZrezygnuje = atrakcje[nr_atrakcji].mozna_opuscic && random_chance(10);
 
     if (nr_atrakcji == 16) {czyZrezygnuje = true;}
@@ -393,6 +392,11 @@ void wyjdz_z_parku() {
                                 g_klient.pidKlienta, IPC_NOWAIT);
         if (result != -1) break;
         if (ewakuacja) return;
+        if (!g_park->park_otwarty) {
+            printf("%02d:%02d - Klient %d WYCHODZI z parku bez czekania na paragon\n",
+               curTime.hour, curTime.minute, g_klient.pidKlienta);
+            return;
+        }
         usleep(50000);
     }
 

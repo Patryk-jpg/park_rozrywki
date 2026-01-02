@@ -128,11 +128,11 @@ int main(int argc, char *argv[]) {
 
 
         payment_message payment_request{};
-        ssize_t wychodzacy = msgrcv(kasaId, &payment_request,
-                                    sizeof(payment_request) - sizeof(long),
-                                    MSG_TYPE_EXIT_PAYMENT, IPC_NOWAIT);
+        // ssize_t wychodzacy = msgrcv(kasaId, &payment_request,
+        //                             sizeof(payment_request) - sizeof(long),
+        //                             MSG_TYPE_EXIT_PAYMENT, IPC_NOWAIT);
 
-        if (wychodzacy != -1) {
+        while (msgrcv(kasaId, &payment_request, sizeof(payment_request) - sizeof(long),MSG_TYPE_EXIT_PAYMENT, IPC_NOWAIT) != -1) {
             if (clients_pids.find(payment_request.pid) == clients_pids.end()) {
                 printf("BŁĄD: Brak danych biletu dla klienta %d\n", payment_request.pid);
                 continue;
@@ -160,10 +160,13 @@ int main(int argc, char *argv[]) {
             }
             total = kwota_bilet + koszt_rest + doplata;
 
-            // Wyślij potwierdzenie
             payment_request.mtype = payment_request.pid;
             payment_request.suma = total;
-            msgsnd(kasaId, &payment_request, sizeof(payment_request) - sizeof(long), 0);
+
+            // jesli klient dalej czeka na paragon to mu go daj
+            if (g_park->park_otwarty && g_park->clients_count != 0) {
+                msgsnd(kasaId, &payment_request, sizeof(payment_request) - sizeof(long), 0);
+            }
 
             // Aktualizuj statystyki
             zarobki += total;
@@ -186,69 +189,70 @@ int main(int argc, char *argv[]) {
         serwer_message reply{};
 
 
+        //printf("KASA widzi %d klientow w parku", klienci_w_parku);
+        // USUWAJ PARAGONY
+
+
+        // WPUSZAJ DO PARKU
+        //size_t n =
+        while (msgrcv(kasaId, &request, sizeof(request) - sizeof(long), -10, IPC_NOWAIT) != -1) {
+            reply.mtype = request.pid_klienta;
+            reply.typ_biletu = request.typ_biletu;
+            reply.ilosc_osob = request.ilosc_osob;
+
+            // Oblicz cenę (VIP = 0)
+            if (request.typ_biletu == BILETVIP) {
+                reply.cena = 0.0f;
+            } else {
+                reply.cena = request.ilosc_biletow * bilety[request.typ_biletu].cena;
+            }
+
+            // Oblicz czas biletu
+            wait_semaphore(g_park->park_sem, 0, 0);
+            reply.start_biletu = g_park->czas_w_symulacji;
+            int czas_trwania_h = bilety[request.typ_biletu].czasTrwania;
+            reply.end_biletu = reply.start_biletu + SimTime(czas_trwania_h, 0);
+            signal_semaphore(g_park->park_sem, 0);
+
+            // Spróbuj zarezerwować miejsca
+            reply.status = update_licznik_klientow(request);
+
+            // Sprawdź czy park nadal otwarty
+            wait_semaphore(g_park->park_sem, 0, 0);
+            if (!g_park->park_otwarty || ewakuacja) {
+                reply.status = -1;
+            }
+            signal_semaphore(g_park->park_sem, 0);
+
+            // Wyślij odpowiedź
+            msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
+            if (reply.status == 0) {
+                clients_pids[request.pid_klienta] = reply;
+                wait_semaphore(g_park->park_sem, 0, 0);
+                SimTime curtime = g_park->czas_w_symulacji;
+                signal_semaphore(g_park->park_sem, 0);
+                printf("%02d:%02d - Klient %d kupił bilet %s (%.2f zł), osób: %d, ważny do %02d:%02d\n",curtime.hour,curtime.minute,
+                         request.pid_klienta, bilety[request.typ_biletu].nazwa,
+                         reply.cena, request.ilosc_osob,
+                         reply.end_biletu.hour, reply.end_biletu.minute);
+            } else {
+                printf("Klient %d ODRZUCONY (park pełny lub zamknięty)\n", request.pid_klienta);
+            }
+            fflush(stdout);
+        }
+
         msgctl(kasaId, IPC_STAT, &buf);
         wait_semaphore(g_park->park_sem, 0, 0);
         int klienci_w_parku = g_park->clients_count;
         bool otwarty = g_park->park_otwarty;
         signal_semaphore(g_park->park_sem, 0);
 
-        if (!otwarty && klienci_w_parku == 0 && buf.msg_qnum == 0) {
+        if (!otwarty && klienci_w_parku == 0) {
             printf("Park zamknięty, brak klientów, zamykam kasę\n");
             fflush(stdout);
             break;
         }
-        //printf("KASA widzi %d klientow w parku", klienci_w_parku);
-
-        // WPUSZAJ DO PARKU
-        size_t n = msgrcv(kasaId, &request, sizeof(request) - sizeof(long), -10, IPC_NOWAIT);
-        if (n == -1) {
-            usleep(1000);
-            continue;
-        }
-         reply.mtype = request.pid_klienta;
-        reply.typ_biletu = request.typ_biletu;
-        reply.ilosc_osob = request.ilosc_osob;
-
-        // Oblicz cenę (VIP = 0)
-        if (request.typ_biletu == BILETVIP) {
-            reply.cena = 0.0f;
-        } else {
-            reply.cena = request.ilosc_biletow * bilety[request.typ_biletu].cena;
-        }
-
-        // Oblicz czas biletu
-        wait_semaphore(g_park->park_sem, 0, 0);
-        reply.start_biletu = g_park->czas_w_symulacji;
-        int czas_trwania_h = bilety[request.typ_biletu].czasTrwania;
-        reply.end_biletu = reply.start_biletu + SimTime(czas_trwania_h, 0);
-        signal_semaphore(g_park->park_sem, 0);
-
-        // Spróbuj zarezerwować miejsca
-        reply.status = update_licznik_klientow(request);
-
-        // Sprawdź czy park nadal otwarty
-        wait_semaphore(g_park->park_sem, 0, 0);
-        if (!g_park->park_otwarty || ewakuacja) {
-            reply.status = -1;
-        }
-        signal_semaphore(g_park->park_sem, 0);
-
-        // Wyślij odpowiedź
-        msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
-        if (reply.status == 0) {
-            clients_pids[request.pid_klienta] = reply;
-            wait_semaphore(g_park->park_sem, 0, 0);
-            SimTime curtime = g_park->czas_w_symulacji;
-            signal_semaphore(g_park->park_sem, 0);
-            printf("%02d:%02d - Klient %d kupił bilet %s (%.2f zł), osób: %d, ważny do %02d:%02d\n",curtime.hour,curtime.minute,
-                     request.pid_klienta, bilety[request.typ_biletu].nazwa,
-                     reply.cena, request.ilosc_osob,
-                     reply.end_biletu.hour, reply.end_biletu.minute);
-        } else {
-            printf("Klient %d ODRZUCONY (park pełny lub zamknięty)\n", request.pid_klienta);
-        }
-        fflush(stdout);
-
+        usleep(1000);
 
     }
 

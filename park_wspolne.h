@@ -26,7 +26,7 @@
 #define CZAS_ZAMKNIECIA 20
 #define PROCENT_VIP 1
 #define LICZBA_ATRAKCJI 17
-
+#define MINUTA 10000
 // CZASY BILETÓW (w minutach)
 #define BILET_2H 120
 #define BILET_4H 240
@@ -52,6 +52,7 @@
 #define MSG_TYPE_EXIT_PAYMENT 101       // Płatność przy wyjściu
 
 #define SEZON_LETNI true
+
 
 // STRUCTY
 struct Atrakcja {

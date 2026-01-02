@@ -2,6 +2,8 @@
 #pragma once
 
 #include "park_wspolne.h"
+
+
 struct dziecko {
     int wiek;
     int wzrost;

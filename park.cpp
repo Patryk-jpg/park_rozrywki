@@ -265,7 +265,7 @@ int   main() {
             }
         }
 
-        usleep(10000);
+        usleep(MINUTA);
     }
 
     wait_semaphore(g_park->park_sem,0,0);

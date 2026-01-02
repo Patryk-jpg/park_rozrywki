@@ -7,6 +7,16 @@ struct czasy {
     bool zajete;                 // Czy wagonik w użyciu
 };
 
+std::vector<int> anulowalne = {0, 1, 2, 3, 4, 12, 13, 14, 15, 16}; // Indeksy A1-A5, A13-A17
+
+bool contains(const std::vector<int>& lista, int val) {
+    for (int i=0; i<lista.size(); i++) {
+        if (val == lista[i]) return true;
+
+    }
+    return false;
+}
+
 static volatile sig_atomic_t ewakuacja = 0;
 static volatile sig_atomic_t zatrzymano = 0;
 park_wspolne* g_park = nullptr;
@@ -49,6 +59,7 @@ void ewakuuj_wszystkich(int wejscieDoAtrakcji, czasy czasyJazdy[], int iloscWago
                 ACKmes mes;
                 mes.mtype = pid;
                 mes.ack = -3; // -3 = ewakuacja
+                if (!contains(anulowalne, nr_atrakcji)){usleep(MINUTA);}
                 msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0);
             }
             czasyJazdy[i].pids.clear();
