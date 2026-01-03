@@ -4,7 +4,7 @@
 
 park_wspolne* g_park = nullptr;
 static volatile sig_atomic_t zakonczenie = 0;
-
+int logger_id = -1;
 void sig3handler(int sig) {
     zakonczenie = 1;
 }
@@ -18,12 +18,12 @@ int main(int argc, char* argv[]) {
     sa_int.sa_flags = 0;
     sigaction(SIGUSR1, &sa_int, nullptr);
 
-    printf("[KASA RESTAURACJI] Uruchomiona (PID: %d)\n", getpid());
+    log_message(logger_id,"[KASA RESTAURACJI] Uruchomiona (PID: %d)\n", getpid());
     fflush(stdout);
 
     init_random();
     g_park = attach_to_shared_block();
-
+    logger_id = g_park->logger_id;
     int kasa_rest_id = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED);
 
     int licznik_transakcji = 0;
@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
 
     while (true) {
         if (zakonczenie) {
-            printf("Otrzymano sygnał zakonczenia, zamykam kasę restauracji\n");
+            log_message(logger_id,"Otrzymano sygnał zakonczenia, zamykam kasę restauracji\n");
             break;
         }
         msgctl(kasa_rest_id, IPC_STAT, &buf);
@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
         SimTime curTime = g_park->czas_w_symulacji;
         signal_semaphore(g_park->park_sem, 0);
 
-        printf("[RESTAURACJA] %02d:%02d - Klient %d: %.2f zł za %d min\n",
+        log_message(logger_id,"[RESTAURACJA] %02d:%02d - Klient %d: %.2f zł za %d min\n",
                curTime.hour, curTime.minute,
                msg.pid_klienta, msg.kwota, msg.czas_pobytu_min);
         fflush(stdout);
@@ -79,25 +79,27 @@ int main(int argc, char* argv[]) {
 
         // Zamknij jeśli park zamknięty i kolejka pusta
         if (!otwarty && buf.msg_qnum == 0 && zakonczenie) {
-            printf("Park zamknięty, kolejka pusta - zamykam kasę restauracji\n");
+            log_message(logger_id,"Park zamknięty, kolejka pusta - zamykam kasę restauracji\n");
             break;
         }
     }
 
-    printf("\n[KASA RESTAURACJI] Zamykam kasę\n");
-    printf("========================================\n");
-    printf("Podsumowanie dnia:\n");
-    printf("Liczba transakcji: %d\n", licznik_transakcji);
-    printf("Suma przychodów:   %.2f zł\n", suma_przychodow);
-    if (licznik_transakcji > 0) {
-        printf("Średnia wartość:   %.2f zł\n", suma_przychodow / licznik_transakcji);
-    }
-    printf("========================================\n");
-    fflush(stdout);
+    // printf("\n[KASA RESTAURACJI] Zamykam kasę\n");
+    //
+    // printf("========================================\n");
+    // printf("Podsumowanie dnia:\n");
+    // printf("Liczba transakcji: %d\n", licznik_transakcji);
+    // printf("Suma przychodów:   %.2f zł\n", suma_przychodow);
+    // if (licznik_transakcji > 0) {
+    //     printf("Średnia wartość:   %.2f zł\n", suma_przychodow / licznik_transakcji);
+    // }
+    // printf("========================================\n");
+    // fflush(stdout);
+
+    log_message(logger_id,"[RESTAURACJA] Zamykam kase -Liczba transakcji: %d,Suma zarobków: %.2f zł\n",licznik_transakcji,suma_przychodow);
 
 
     detach_from_shared_block(g_park);
 
-    printf("Zakończono kase restauracji (PID: %d)\n", getpid());
     return 0;
 }

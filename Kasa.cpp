@@ -4,7 +4,7 @@
 
 park_wspolne* g_park = nullptr;
 static volatile sig_atomic_t ewakuacja = 0;
-
+int logger_id = -1;
 void sig3handler(int sig) {
     ewakuacja = 1;
 }
@@ -13,6 +13,9 @@ void sig3handler(int sig) {
  * Próbuje zarezerwować miejsca dla klientów w parku.
  * Zwraca 0 jeśli sukces, -1 jeśli park pełny lub zamknięty.
  */
+
+
+
 int update_licznik_klientow(klient_message& request) {
     wait_semaphore(g_park->park_sem,0,0);
 
@@ -78,18 +81,22 @@ void wydrukuj_paragon(pid_t pid, const serwer_message& bilet, const payment_mess
 
     if (czas_nadmiarowy > 0) {
         printf("Dopłata za czas:    %7.2f zł (%d min)\n", doplata, czas_nadmiarowy);
+    }else {
+        czas_nadmiarowy = 0;
     }
     printf("----------------------------------------\n");
     printf("SUMA:               %7.2f zł\n", suma);
     printf("========================================\n\n");
     fflush(stdout);
-
+    log_message(logger_id, "PARAGON - Klient %d, osób: %d koszt (B+R+C|T): (%7.2f + %7.2f + %7.2f | %7.2f ) czas w restauracji:%d, nadmiarowy %d\n", pid, bilet.ilosc_osob,kwota_bilet,koszt_restauracji,
+        doplata, suma, payment.czasWRestauracji, czas_nadmiarowy );
 
 }
 
 
 
 int main(int argc, char *argv[]) {
+
 
     // Ignoruj SIGINT (obsługuje go Kierownik)
     signal(SIGINT, SIG_IGN);
@@ -105,10 +112,12 @@ int main(int argc, char *argv[]) {
     float zarobki = 0.0f;
     int transakcje = 0;
 
-    printf("KASA CZYNNA (PID: %d)\n", getpid());
+    log_message(logger_id,"KASA CZYNNA (PID: %d)\n", getpid());
     fflush(stdout);
 
     g_park = attach_to_shared_block();
+    logger_id = g_park->logger_id;
+
     int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
 
     // Mapa przechowująca informacje o biletach klientów
@@ -120,7 +129,7 @@ int main(int argc, char *argv[]) {
     while (true) {
 
         if (ewakuacja) {
-            printf("Otrzymano sygnał ewakuacji, zamykam kasę\n");
+            log_message(logger_id,"Otrzymano sygnał ewakuacji, zamykam kasę\n");
             fflush(stdout);
             break;
         }
@@ -134,7 +143,7 @@ int main(int argc, char *argv[]) {
 
         while (msgrcv(kasaId, &payment_request, sizeof(payment_request) - sizeof(long),MSG_TYPE_EXIT_PAYMENT, IPC_NOWAIT) != -1) {
             if (clients_pids.find(payment_request.pid) == clients_pids.end()) {
-                printf("BŁĄD: Brak danych biletu dla klienta %d\n", payment_request.pid);
+                log_message(logger_id,"BŁĄD: Brak danych biletu dla klienta %d\n", payment_request.pid);
                 continue;
             }
             wydrukuj_paragon(payment_request.pid, clients_pids[payment_request.pid], payment_request);
@@ -189,7 +198,7 @@ int main(int argc, char *argv[]) {
         serwer_message reply{};
 
 
-        //printf("KASA widzi %d klientow w parku", klienci_w_parku);
+        //log_message(logger_id,"KASA widzi %d klientow w parku", klienci_w_parku);
         // USUWAJ PARAGONY
 
 
@@ -231,12 +240,12 @@ int main(int argc, char *argv[]) {
                 wait_semaphore(g_park->park_sem, 0, 0);
                 SimTime curtime = g_park->czas_w_symulacji;
                 signal_semaphore(g_park->park_sem, 0);
-                printf("%02d:%02d - Klient %d kupił bilet %s (%.2f zł), osób: %d, ważny do %02d:%02d\n",curtime.hour,curtime.minute,
+                log_message(logger_id,"%02d:%02d - Klient %d kupił bilet %s (%.2f zł), osób: %d, ważny do %02d:%02d\n",curtime.hour,curtime.minute,
                          request.pid_klienta, bilety[request.typ_biletu].nazwa,
                          reply.cena, request.ilosc_osob,
                          reply.end_biletu.hour, reply.end_biletu.minute);
             } else {
-                printf("Klient %d ODRZUCONY (park pełny lub zamknięty)\n", request.pid_klienta);
+                log_message(logger_id,"Klient %d ODRZUCONY (park pełny lub zamknięty)\n", request.pid_klienta);
             }
             fflush(stdout);
         }
@@ -248,7 +257,7 @@ int main(int argc, char *argv[]) {
         signal_semaphore(g_park->park_sem, 0);
 
         if (!otwarty && klienci_w_parku == 0) {
-            printf("Park zamknięty, brak klientów, zamykam kasę\n");
+            log_message(logger_id,"Park zamknięty, brak klientów, zamykam kasę\n");
             fflush(stdout);
             break;
         }
@@ -256,15 +265,8 @@ int main(int argc, char *argv[]) {
 
     }
 
-    printf("\n[KASA] Zamykam kasę\n");
-    printf("========================================\n");
-    printf("Podsumowanie dnia:\n");
-    printf("Liczba transakcji: %d\n", transakcje);
-    printf("Suma zarobków:     %.2f zł\n", zarobki);
-    if (transakcje > 0) {
-        printf("Średnia wartość:   %.2f zł\n", zarobki / transakcje);
-    }
-    printf("========================================\n");
+    log_message(logger_id,"[KASA] Zamykam kase -Liczba transakcji: %d,Suma zarobków: %.2f zł\n",transakcje,zarobki);
+
     fflush(stdout);
 
 

@@ -9,7 +9,7 @@ static volatile sig_atomic_t ewakuacja = 0;
 park_wspolne* g_park = nullptr;
 static klient g_klient;
 std::vector<int> anulowalne = {0, 1, 2, 3, 4, 12, 13, 14, 15, 16}; // Indeksy A1-A5, A13-A17
-
+int logger_id = -1;
 // SIG HANDLERS
 
 void sigint_handler(int sig) {
@@ -53,6 +53,7 @@ int main(int argc, char* argv[]) {
 
     init_random();
     g_park = attach_to_shared_block();
+    logger_id = g_park->logger_id;
 
     if (random_chance(1)) {
         g_klient.czyVIP=true;
@@ -74,7 +75,7 @@ int main(int argc, char* argv[]) {
 
     if (random_chance(5)) {
         SimTime curtime = getTime();
-        printf("%02d:%02d - Klient %d idzie do restauracji PRZED wejściem do parku\n",curtime.hour,curtime.minute,g_klient.pidKlienta);
+        log_message(logger_id,"%02d:%02d - Klient %d idzie do restauracji PRZED wejściem do parku\n",curtime.hour,curtime.minute,g_klient.pidKlienta);
         fflush(stdout);
         idz_do_atrakcji(16, g_klient.pidKlienta);
         if (random_chance(95)) {
@@ -85,7 +86,7 @@ int main(int argc, char* argv[]) {
     wejdz_do_parku();
     if (random_chance(5) &&g_park->park_otwarty) {
         SimTime curtime = getTime();
-        printf("%02d:%02d -Klient %d idzie do restauracji PO wyjściu z parku\n", curtime.hour,curtime.minute, g_klient.pidKlienta);
+        log_message(logger_id,"%02d:%02d -Klient %d idzie do restauracji PO wyjściu z parku\n", curtime.hour,curtime.minute, g_klient.pidKlienta);
         idz_do_atrakcji(16, g_klient.pidKlienta);
     }
     if (g_klient.dzieckoInfo) {
@@ -97,13 +98,13 @@ int main(int argc, char* argv[]) {
 }
 void wejdz_do_parku() {
     if (!park_otwarty()) {
-        printf("Klient %d: park zamknięty, nie wchodzi\n", g_klient.pidKlienta);
+        log_message(logger_id,"Klient %d: park zamknięty, nie wchodzi\n", g_klient.pidKlienta);
         return;
     }
 
     int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
     if (kasaId == -1) {
-        printf("Kasa zamknięta, klient %d nie wchodzi\n", g_klient.pidKlienta);
+        log_message(logger_id,"Kasa zamknięta, klient %d nie wchodzi\n", g_klient.pidKlienta);
         return;
     }
     // Przygotowanie wiadomości do kasy
@@ -118,10 +119,10 @@ void wejdz_do_parku() {
     if (g_klient.czyVIP) {
         k_msg.mtype = MSG_TYPE_VIP_TICKET;
         k_msg.typ_biletu = BILETVIP;
-        printf("%02d:%02d - Klient %d (VIP) wchodzi do kolejki priorytetowej\n", curTime.hour,curTime.minute, g_klient.pidKlienta);
+        log_message(logger_id,"%02d:%02d - Klient %d (VIP) wchodzi do kolejki priorytetowej\n", curTime.hour,curTime.minute, g_klient.pidKlienta);
     } else {
         k_msg.mtype = MSG_TYPE_STANDARD_TICKET;
-        printf("%02d:%02d - Klient %d wchodzi do kolejki (bilet: %s, osób: %d)\n",curTime.hour, curTime.minute,
+        log_message(logger_id,"%02d:%02d - Klient %d wchodzi do kolejki (bilet: %s, osób: %d)\n",curTime.hour, curTime.minute,
                    g_klient.pidKlienta, bilety[g_klient.typ_biletu].nazwa, g_klient.ilosc_osob);
     }
 
@@ -136,22 +137,22 @@ void wejdz_do_parku() {
             break; // Otrzymano odpowiedź
         }
         if (ewakuacja) {
-            printf("Klient %d: ewakuacja podczas oczekiwania w kolejce\n", g_klient.pidKlienta);
+            log_message(logger_id,"Klient %d: ewakuacja podczas oczekiwania w kolejce\n", g_klient.pidKlienta);
             wyjdz_z_parku();
             return;
         }
         if (!g_park->park_otwarty) {
-            printf("Klient %d: przestaje czekać na wejście do parku bo park się zamknął\n", g_klient.pidKlienta);
+            log_message(logger_id,"Klient %d: przestaje czekać na wejście do parku bo park się zamknął\n", g_klient.pidKlienta);
             return;
         }
         usleep(50000);
     }
     curTime = getTime();
-    printf("%02d:%02d - Klient %d wychodzi z kolejki do kasy\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
+    log_message(logger_id,"%02d:%02d - Klient %d wychodzi z kolejki do kasy\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
     fflush(stdout);
 
     if (reply.status == -1) {
-        printf("Nie udalo sie wejsc do parku, klient %d ucieka\n", g_klient.pidKlienta);
+        log_message(logger_id,"Nie udalo sie wejsc do parku, klient %d ucieka\n", g_klient.pidKlienta);
         return;
     }
     // OD TERAZ KLIENT W PARKU
@@ -167,7 +168,7 @@ void wejdz_do_parku() {
     int ludzi_w_parku = g_park->clients_count;
     signal_semaphore(g_park->park_sem,0);
 
-    printf("%02d:%02d:Klient %d w parku z biletem %s, wyjdzie o %02d:%02d\n"
+    log_message(logger_id,"%02d:%02d:Klient %d w parku z biletem %s, wyjdzie o %02d:%02d\n"
            "Ilosc ludzi w parku: %d \n",curTime.hour, curTime.minute,g_klient.pidKlienta, bilety[g_klient.typ_biletu].nazwa,
            g_klient.czasWyjscia.hour, g_klient.czasWyjscia.minute
            ,ludzi_w_parku);
@@ -184,12 +185,12 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
     SimTime czas_zakonczenia;
     SimTime czas_rozpoczecia;
     if (!park_otwarty()) {
-        printf("Klient %d: park zamknięty, nie może iść na atrakcję\n", identifier);
+        log_message(logger_id,"Klient %d: park zamknięty, nie może iść na atrakcję\n", identifier);
         return -3;
     }
     int atrakcja_id = g_park->pracownicy_keys[nr_atrakcji];
     if (atrakcja_id <= 0) {
-        printf("Klient %d: atrakcja %s zamknięta (kolejka nie istnieje)\n",
+        log_message(logger_id,"Klient %d: atrakcja %s zamknięta (kolejka nie istnieje)\n",
                    identifier, atrakcje[nr_atrakcji].nazwa);
         return -1;
     }
@@ -203,7 +204,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
 
     if (msgsnd(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), IPC_NOWAIT) == -1) {
         if (errno == EIDRM || errno == EINVAL) {
-            printf("Klient %d: atrakcja %s zamknięta (kolejka usunięta)\n",
+            log_message(logger_id,"Klient %d: atrakcja %s zamknięta (kolejka usunięta)\n",
                        identifier, atrakcje[nr_atrakcji].nazwa);
             return -1;
         }
@@ -216,29 +217,29 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
             break; // Otrzymano odpowiedź
         }
         if (ewakuacja) {
-            printf("Klient %d: ewakuacja podczas oczekiwania na %s\n",identifier, atrakcje[nr_atrakcji].nazwa);
+            log_message(logger_id,"Klient %d: ewakuacja podczas oczekiwania na %s\n",identifier, atrakcje[nr_atrakcji].nazwa);
             return -3;
         }
         usleep(50000);
     }
 
     if (mes.ack == -1) {
-        printf("Klient %d: brak miejsca na %s\n", identifier, atrakcje[nr_atrakcji].nazwa);
+        log_message(logger_id,"Klient %d: brak miejsca na %s\n", identifier, atrakcje[nr_atrakcji].nazwa);
         return -1;
     }
     if (mes.ack == -2) {
-        printf("Klient %d: %s tymczasowo zatrzymana\n", identifier, atrakcje[nr_atrakcji].nazwa);
+        log_message(logger_id,"Klient %d: %s tymczasowo zatrzymana\n", identifier, atrakcje[nr_atrakcji].nazwa);
         return -2;
     }
     if (mes.ack == -3) {
-        printf("Klient %d: ewakuacja z %s\n", identifier, atrakcje[nr_atrakcji].nazwa);
+        log_message(logger_id,"Klient %d: ewakuacja z %s\n", identifier, atrakcje[nr_atrakcji].nazwa);
         return -3;
     }
 
     int moj_wagonik = mes.wagonik;
     czas_rozpoczecia = getTime();
 
-    printf("%02d:%02d - Klient %d rozpoczyna zabawę na %s (wagonik %d)\n",
+    log_message(logger_id,"%02d:%02d - Klient %d rozpoczyna zabawę na %s (wagonik %d)\n",
                   czas_rozpoczecia.hour, czas_rozpoczecia.minute,
                   identifier, atrakcje[nr_atrakcji].nazwa, moj_wagonik);
 
@@ -259,7 +260,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
             ssize_t mess = msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
                             identifier, IPC_NOWAIT);
             if (mess != -1) {
-                printf("Klient %d: %s zakończona przez pracownika\n",
+                log_message(logger_id,"Klient %d: %s zakończona przez pracownika\n",
                            identifier, atrakcje[nr_atrakcji].nazwa);
                 return mes.ack;
             }
@@ -267,7 +268,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
         }
 
         czas_zakonczenia = getTime();
-        printf("%02d:%02d - Klient %d REZYGNUJE z %s po %d min\n", curTime.hour, curTime.minute,
+        log_message(logger_id,"%02d:%02d - Klient %d REZYGNUJE z %s po %d min\n", curTime.hour, curTime.minute,
                    identifier, atrakcje[nr_atrakcji].nazwa, czas_do_rezygnacji);
 
         fflush(stdout);
@@ -299,7 +300,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
 
         g_klient.czasWRestauracji += czas_pobytu;
         SimTime curTime = getTime();
-        printf("%02d:%02d - Klient %d: był w restauracji %d min (łącznie: %d min)\n",curTime.hour,curTime.minute,
+        log_message(logger_id,"%02d:%02d - Klient %d: był w restauracji %d min (łącznie: %d min)\n",curTime.hour,curTime.minute,
                    identifier, czas_pobytu, g_klient.czasWRestauracji);
         fflush(stdout);
         // Jeśli poza parkiem - płać od razu
@@ -314,7 +315,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
 
 void baw_sie() {
     if (!park_otwarty()) {
-        printf("Baw-sie klient wychodzi z parku");
+        log_message(logger_id,"Baw-sie klient wychodzi z parku");
         wyjdz_z_parku();
         return;
     }
@@ -323,7 +324,7 @@ void baw_sie() {
    while (curTime < g_klient.czasWyjscia) {
 
        if (!park_otwarty()) {
-           printf("Klient %d: park został zamknięty, wychodzi\n", g_klient.pidKlienta);
+           log_message(logger_id,"Klient %d: park został zamknięty, wychodzi\n", g_klient.pidKlienta);
            wyjdz_z_parku();
            return;
        }
@@ -338,7 +339,7 @@ void baw_sie() {
         }
 
        if (max_proby <= 0) {
-           printf("Klient %d: brak dostępnych atrakcji, czeka\n", g_klient.pidKlienta);
+           log_message(logger_id,"Klient %d: brak dostępnych atrakcji, czeka\n", g_klient.pidKlienta);
            usleep(100000); // Czekaj 100ms
            curTime = getTime();
            continue;
@@ -354,7 +355,7 @@ void baw_sie() {
             continue;
         } else if (status == -3) {
             // Ewakuacja
-            printf("Klient %d: ewakuacja podczas zabawy\n", g_klient.pidKlienta);
+            log_message(logger_id,"Klient %d: ewakuacja podczas zabawy\n", g_klient.pidKlienta);
             wyjdz_z_parku();
             return;
         } else {
@@ -369,7 +370,7 @@ void baw_sie() {
     }
 
     usleep(1000);
-    printf("Klient %d: upłynął czas biletu, wychodzi\n", g_klient.pidKlienta);
+    log_message(logger_id,"Klient %d: upłynął czas biletu, wychodzi\n", g_klient.pidKlienta);
     wyjdz_z_parku();
 }
 
@@ -383,7 +384,7 @@ void wyjdz_z_parku() {
     k_msg.czasWyjscia = getTime();
     k_msg.mtype = MSG_TYPE_EXIT_PAYMENT;
     SimTime curTime = getTime();
-    printf("%02d:%02d - Klient %d idzie do kasy zapłacić przy wyjściu\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
+    log_message(logger_id,"%02d:%02d - Klient %d idzie do kasy zapłacić przy wyjściu\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
 
     msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
 
@@ -393,7 +394,7 @@ void wyjdz_z_parku() {
         if (result != -1) break;
         if (ewakuacja) return;
         if (!g_park->park_otwarty) {
-            printf("%02d:%02d - Klient %d WYCHODZI z parku bez czekania na paragon\n",
+            log_message(logger_id,"%02d:%02d - Klient %d WYCHODZI z parku bez czekania na paragon\n",
                curTime.hour, curTime.minute, g_klient.pidKlienta);
             return;
         }
@@ -401,7 +402,7 @@ void wyjdz_z_parku() {
     }
 
     curTime = getTime();
-    printf("%02d:%02d - Klient %d WYCHODZI z parku, zapłacił %.2f zł\n",
+    log_message(logger_id,"%02d:%02d - Klient %d WYCHODZI z parku, zapłacił %.2f zł\n",
                curTime.hour, curTime.minute, g_klient.pidKlienta, k_msg.suma);
 
 }
@@ -409,7 +410,7 @@ void wyjdz_z_parku() {
 void  zaplac_za_restauracje_z_zewnatrz(int czas_pobytu) {
 
     SimTime curTime = getTime();
-    printf("%02d:%02d - Klient %d idzie do kasy restauracji (bez wejścia do parku)\n",
+    log_message(logger_id,"%02d:%02d - Klient %d idzie do kasy restauracji (bez wejścia do parku)\n",
                curTime.hour, curTime.minute, g_klient.pidKlienta);
 
 
@@ -434,7 +435,7 @@ void  zaplac_za_restauracje_z_zewnatrz(int czas_pobytu) {
     }
 
     curTime = getTime();
-    printf("%02d:%02d - Klient %d wychodzi z restauracji, zapłacił %.2f zł\n",
+    log_message(logger_id,"%02d:%02d - Klient %d wychodzi z restauracji, zapłacił %.2f zł\n",
                curTime.hour, curTime.minute, g_klient.pidKlienta, msg.kwota);
 
 }

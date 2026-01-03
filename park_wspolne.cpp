@@ -172,3 +172,28 @@ float oblicz_koszt_restauracji(int czas_min) {
 
     return koszt;
 }
+
+
+void log_message( int logger_id, const char* format, ...) {
+
+    if (logger_id == -1) {
+        fprintf(stderr, "Kolejka nie zainicjalizowana\n");
+        return;
+    }
+
+    LogMessage msg;
+    msg.mtype = 1;
+
+    va_list args;
+    va_start(args, format);
+    vsnprintf(msg.message, sizeof(msg.message), format, args);
+    va_end(args);
+
+    if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), IPC_NOWAIT) == -1) {
+        if (errno == EAGAIN) {
+            fprintf(stderr, "[LOG OVERFLOW] %s\n", msg.message);
+        } else {
+            PRINT_ERROR("msgsnd log");
+        }
+    }
+}

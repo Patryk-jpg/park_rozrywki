@@ -1,6 +1,8 @@
 #pragma once
 #define PRINT_ERROR(msg) print_error_impl(__FILE__, __LINE__, __func__, msg)
 
+
+
 #include <ctime>
 #include <string>
 #include <csignal>
@@ -38,6 +40,7 @@
 #define SEED_FILENAME_PARK "/tmp/sharedfile"
 #define SEED_FILENAME_QUEUE "/tmp/queuefile"
 #define SEED_FILENAME_SEMAPHORES "/tmp/semaphores"
+#define LOG_FILE "raport.txt"
 #define QUEUE_SEED 'Q'
 #define SEM_SEED 'S'
 #define QUEUE_REST_SEED 'R'
@@ -52,7 +55,6 @@
 #define MSG_TYPE_EXIT_PAYMENT 101       // Płatność przy wyjściu
 
 #define SEZON_LETNI true
-
 
 // STRUCTY
 struct Atrakcja {
@@ -124,6 +126,7 @@ struct park_wspolne {
     int pracownicy_keys[17];
     int park_sem;
     int clients_count;
+    int logger_id;
 };
 
 // Parametry atrakcji
@@ -236,6 +239,11 @@ struct restauracja_message {
     float kwota;
 };
 
+struct LogMessage {
+    long mtype;
+    char message[128];
+};
+
 // ===== FUNKCJE POMOCNICZE =====
 
 void print_error_impl(const char* file, int line, const char* func, const std::string& msg);
@@ -288,3 +296,4 @@ inline bool random_chance(int percent) {
 
 // Sprawdzanie poprawności
 void error_check(int id, const std::string& message);
+void log_message(int logger_id,const char* format, ...);

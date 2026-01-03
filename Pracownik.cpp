@@ -1,5 +1,6 @@
 #include "park_wspolne.h"
 #include <algorithm>
+int logger_id = -1;
 
 struct czasy {
     SimTime czasJazdy;           // Kiedy atrakcja się kończy
@@ -50,7 +51,7 @@ int znajdzWolnyWagonik(czasy czasyJazdy[], int iloscWagonikow) {
     return -1;
 }
 void ewakuuj_wszystkich(int wejscieDoAtrakcji, czasy czasyJazdy[], int iloscWagonikow, int nr_atrakcji) {
-    printf("EWAKUACJA atrakcji %s - wyrzucam wszystkich klientów\n", atrakcje[nr_atrakcji].nazwa);
+    log_message(logger_id,"EWAKUACJA atrakcji %s - wyrzucam wszystkich klientów\n", atrakcje[nr_atrakcji].nazwa);
 
     // Wyrzuć wszystkich z wagoników
     for (int i = 0; i < iloscWagonikow; i++) {
@@ -111,11 +112,15 @@ int main(int argc, char* argv[]) {
         PRINT_ERROR("Niepoprawny numer atrakcji: %d\n");
         return(1);
     }
+    g_park = attach_to_shared_block();
+    logger_id = g_park->logger_id;
 
-    printf("[PRACOWNIK-%d] Start obsługi atrakcji: %s (PID: %d)\n",
+
+    log_message(logger_id,"[PRACOWNIK-%d] Start obsługi atrakcji: %s (PID: %d)\n",
          nr_atrakcji, atrakcje[nr_atrakcji].nazwa, getpid());
 
-    g_park = attach_to_shared_block();
+
+    
     int wejscieDoAtrakcji = g_park->pracownicy_keys[nr_atrakcji];
 
     int iloscWagonikow = atrakcje[nr_atrakcji].limit_osob / atrakcje[nr_atrakcji].po_ile_osob_wchodzi;
@@ -140,18 +145,18 @@ int main(int argc, char* argv[]) {
         signal_semaphore(g_park->park_sem, 0);
 
         if (licznik_klientow == 0 && !otwarty) {
-            printf("Atrakcja %s: park zamknięty, brak klientów, kończę pracę\n",
+            log_message(logger_id,"Atrakcja %s: park zamknięty, brak klientów, kończę pracę\n",
                          atrakcje[nr_atrakcji].nazwa);
             break;
         }
 
         if (zatrzymano) {
             if (ewakuacja) {
-                printf("EWAKUACJA na atrakcji %s!\n", atrakcje[nr_atrakcji].nazwa);
+                log_message(logger_id,"EWAKUACJA na atrakcji %s!\n", atrakcje[nr_atrakcji].nazwa);
                 ewakuuj_wszystkich(wejscieDoAtrakcji, czasyJazdy, iloscWagonikow, nr_atrakcji);
                 break;
             }
-            printf("ZATRZYMANIE atrakcji %s\n", atrakcje[nr_atrakcji].nazwa);
+            log_message(logger_id,"ZATRZYMANIE atrakcji %s\n", atrakcje[nr_atrakcji].nazwa);
 
             fflush(stdout);
             // Wyrzuć klientów z wagoników
@@ -195,7 +200,7 @@ int main(int argc, char* argv[]) {
                     if (it != czasyJazdy[mes.wagonik].pids.end()) {
                         czasyJazdy[mes.wagonik].pids.erase(it);
                         SimTime curtime = getTime();
-                        printf("%02d:%02d,Klient %d zrezygnował z %s (wagonik %d)\n", curtime.hour, curtime.minute,
+                        log_message(logger_id,"%02d:%02d,Klient %d zrezygnował z %s (wagonik %d)\n", curtime.hour, curtime.minute,
                                      mes.ack, atrakcje[nr_atrakcji].nazwa, mes.wagonik);
                         fflush(stdout);
                     }
@@ -220,7 +225,7 @@ int main(int argc, char* argv[]) {
                     }
 
                     int ilosc_klientow = czasyJazdy[i].pids.size();
-                    printf("%02d:%02d - Atrakcja %s (wagonik %d) zakończona, wypuszczono %d klientów\n",
+                    log_message(logger_id,"%02d:%02d - Atrakcja %s (wagonik %d) zakończona, wypuszczono %d klientów\n",
                                  curTime.hour, curTime.minute,
                                  atrakcje[nr_atrakcji].nazwa, i, ilosc_klientow);
                     // Zwolnij wagonik
@@ -271,7 +276,7 @@ int main(int argc, char* argv[]) {
                 int zajete = atrakcje[nr_atrakcji].po_ile_osob_wchodzi - wolne_miejsca;
                 uruchomione_atrakcje++;
 
-                printf("%02d:%02d - URUCHOMIENIE %s (wagonik %d): %d osób w %d grupach, koniec o %02d:%02d\n",
+                log_message(logger_id,"%02d:%02d - URUCHOMIENIE %s (wagonik %d): %d osób w %d grupach, koniec o %02d:%02d\n",
                              curTime.hour, curTime.minute,
                              atrakcje[nr_atrakcji].nazwa, freeCart,
                              zajete, (int)nowa_jazda.pids.size(),
@@ -286,7 +291,7 @@ int main(int argc, char* argv[]) {
     if (ewakuacja) {
         ewakuuj_wszystkich(wejscieDoAtrakcji, czasyJazdy, iloscWagonikow, nr_atrakcji);
     }
-    printf("KONIEC pracy na atrakcji %s (uruchomiono %d razy)\n",
+    log_message(logger_id,"KONIEC pracy na atrakcji %s (uruchomiono %d razy)\n",
                      atrakcje[nr_atrakcji].nazwa, uruchomione_atrakcje);
     fflush(stdout);
     delete[] czasyJazdy;
