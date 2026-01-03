@@ -339,7 +339,7 @@ void baw_sie() {
         }
 
        if (max_proby <= 0) {
-           log_message(logger_id,"Klient %d: brak dostępnych atrakcji, czeka\n", g_klient.pidKlienta);
+           //log_message(logger_id,"Klient %d: brak dostępnych atrakcji, czeka\n", g_klient.pidKlienta);
            usleep(100000); // Czekaj 100ms
            curTime = getTime();
            continue;
