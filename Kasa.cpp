@@ -3,10 +3,10 @@
 #include <map>
 
 park_wspolne* g_park = nullptr;
-static volatile sig_atomic_t ewakuacja = 0;
+static volatile sig_atomic_t koniec = 0;
 int logger_id = -1;
 void sig3handler(int sig) {
-    ewakuacja = 1;
+    koniec = 1;
 }
 
 /**
@@ -128,8 +128,8 @@ int main(int argc, char *argv[]) {
 
     while (true) {
 
-        if (ewakuacja) {
-            log_message(logger_id,"Otrzymano sygnał ewakuacji, zamykam kasę\n");
+        if (koniec) {
+            log_message(logger_id,"Otrzymano sygnał zakończenia, zamykam kasę\n");
             fflush(stdout);
             break;
         }
@@ -228,7 +228,7 @@ int main(int argc, char *argv[]) {
 
             // Sprawdź czy park nadal otwarty
             wait_semaphore(g_park->park_sem, 0, 0);
-            if (!g_park->park_otwarty || ewakuacja) {
+            if (!g_park->park_otwarty || koniec) {
                 reply.status = -1;
             }
             signal_semaphore(g_park->park_sem, 0);

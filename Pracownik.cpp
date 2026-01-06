@@ -120,7 +120,6 @@ int main(int argc, char* argv[]) {
          nr_atrakcji, atrakcje[nr_atrakcji].nazwa, getpid());
 
 
-    
     int wejscieDoAtrakcji = g_park->pracownicy_keys[nr_atrakcji];
 
     int iloscWagonikow = atrakcje[nr_atrakcji].limit_osob / atrakcje[nr_atrakcji].po_ile_osob_wchodzi;

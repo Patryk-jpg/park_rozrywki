@@ -2,6 +2,7 @@
 #pragma once
 
 #include "park_wspolne.h"
+#include <memory>
 
 
 struct dziecko {
@@ -23,7 +24,7 @@ public:
     bool wParku = false;
     std::vector<int> odwiedzone;
     bool ma_dziecko = false;
-    dziecko* dzieckoInfo;
+    std::unique_ptr<dziecko> dzieckoInfo;
     int ilosc_osob;
 };
 bool spelniaWymagania(int nr_atrakcji);

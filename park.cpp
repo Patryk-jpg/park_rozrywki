@@ -32,31 +32,31 @@ void* watek_logger(void* arg) {
                     "========================================\n\n";
     write(fd, header, strlen(header));
     LogMessage msg;
-    while (logger_running) {
-        // Odbierz wiadomość (z timeoutem)
+    while (true) {
+
         ssize_t result = msgrcv(logger_id, &msg,
                                sizeof(msg) - sizeof(long),
-                               1,  // typ = 1 (wszystkie logi)
-                               IPC_NOWAIT);
+                               -5 ,0  ); //typ 1: logi typ 2: zakoncz
 
         if (result == -1) {
-            if (errno == ENOMSG) {
-                // Brak wiadomości - poczekaj chwilę
-                usleep(5000);  // 50ms
+            if (errno == EINTR)
                 continue;
-            } else if (errno == EINTR) {
-                // Przerwane przez sygnał
-                continue;
-            } else {
-                PRINT_ERROR("msgrcv logger");
-                break;
-            }
+            perror("msgrcv");
+            break;
         }
 
-
-        write(fd, msg.message, strlen(msg.message)  );
-
+        if (msg.mtype == 1) {
+            write(fd, msg.message, strlen(msg.message)  );
+        }
+        else if (msg.mtype == 2) {
+            write(fd, msg.message, strlen(msg.message) );
+            break;
+        }
+        else {
+            PRINT_ERROR("wrong mtype");
+        }
     }
+    close(fd);
     return nullptr;
 }
 
@@ -65,9 +65,11 @@ void* watek_logger(void* arg) {
 
 void poczekaj_na_kasy() {
     log_message(logger_id,"[PARK] Czekam na zakończenie kas...\n");
-    if (signal3) {
-        if (kasa_pid > 0) kill(kasa_pid, SIGUSR1);
+
+    if (kasa_pid > 0) {
+        kill(kasa_pid, SIGUSR1);
     }
+
     if (kasa_pid > 0) {
         int status;
         log_message(logger_id,"[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
@@ -357,8 +359,9 @@ int   main() {
 
 
     log_message(logger_id,"PARK ZAMKNIETY");
+    printf("park zamkniety");
     log_message(logger_id,"Sprzątanie zasobów...\n");
-    logger_running = false;
+    end_logger(logger_id);
     pthread_join(g_logger_tid, NULL);
     if (msgctl(logger_id, IPC_RMID, NULL) == -1) {
         PRINT_ERROR("msgctl IPC_RMID kasa");

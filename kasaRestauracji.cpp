@@ -11,6 +11,9 @@ void sig3handler(int sig) {
 
 int main(int argc, char* argv[]) {
 
+    g_park = attach_to_shared_block();
+    logger_id = g_park->logger_id;
+
     signal(SIGINT, SIG_IGN);
     struct sigaction sa_int{};
     sa_int.sa_handler = sig3handler;
@@ -22,8 +25,7 @@ int main(int argc, char* argv[]) {
     fflush(stdout);
 
     init_random();
-    g_park = attach_to_shared_block();
-    logger_id = g_park->logger_id;
+
     int kasa_rest_id = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED);
 
     int licznik_transakcji = 0;

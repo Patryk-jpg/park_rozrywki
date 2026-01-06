@@ -21,7 +21,8 @@
 #include <cstring>
 #include <cstdarg>
 #include <iostream>
-
+#define LOG_MSG   1
+#define STOP_MSG  2
 // STAŁE KONFIGURACYJNE
 #define MAX_KLIENTOW_W_PARKU 100
 #define CZAS_OTWARCIA 8
@@ -297,3 +298,4 @@ inline bool random_chance(int percent) {
 // Sprawdzanie poprawności
 void error_check(int id, const std::string& message);
 void log_message(int logger_id,const char* format, ...);
+void end_logger(int logger_id);

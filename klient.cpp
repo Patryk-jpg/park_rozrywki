@@ -66,7 +66,6 @@ int main(int argc, char* argv[]) {
 
     if (g_klient.wiek > 18 && random_chance(30)) {
         g_klient.ma_dziecko = true;
-        g_klient.dzieckoInfo = new dziecko();
         g_klient.dzieckoInfo->wiek = random_int(1, 13);
         g_klient.dzieckoInfo->wzrost = random_int(50, 170);
     }
@@ -89,10 +88,7 @@ int main(int argc, char* argv[]) {
         log_message(logger_id,"%02d:%02d -Klient %d idzie do restauracji PO wyjściu z parku\n", curtime.hour,curtime.minute, g_klient.pidKlienta);
         idz_do_atrakcji(16, g_klient.pidKlienta);
     }
-    if (g_klient.dzieckoInfo) {
-        delete g_klient.dzieckoInfo;
-        g_klient.dzieckoInfo = nullptr;
-    }
+
     detach_from_shared_block(g_park);
     return 0;
 }
@@ -155,6 +151,7 @@ void wejdz_do_parku() {
         log_message(logger_id,"Nie udalo sie wejsc do parku, klient %d ucieka\n", g_klient.pidKlienta);
         return;
     }
+
     // OD TERAZ KLIENT W PARKU
 
     g_klient.czasWejscia = reply.start_biletu;

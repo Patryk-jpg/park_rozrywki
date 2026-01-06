@@ -197,3 +197,20 @@ void log_message( int logger_id, const char* format, ...) {
         }
     }
 }
+
+void end_logger(int logger_id) {
+    if (logger_id == -1) {
+        fprintf(stderr, "Kolejka nie zainicjalizowana\n");
+        return;
+    }
+    LogMessage msg;
+    msg.mtype = 2;
+    strcpy(msg.message, "ZAKONCZONO LOGGER\n");
+    if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), IPC_NOWAIT) == -1) {
+        if (errno == EAGAIN) {
+            fprintf(stderr, "[LOG OVERFLOW] %s\n", msg.message);
+        } else {
+            PRINT_ERROR("msgsnd log");
+        }
+    }
+}
