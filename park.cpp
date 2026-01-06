@@ -66,15 +66,13 @@ void* watek_logger(void* arg) {
 void poczekaj_na_kasy() {
     log_message(logger_id,"[PARK] Czekam na zakończenie kas...\n");
 
-    if (kasa_pid > 0) {
-        kill(kasa_pid, SIGUSR1);
-    }
+
 
     if (kasa_pid > 0) {
         int status;
         log_message(logger_id,"[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
         printf("[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
-
+        kill(kasa_pid, SIGUSR1);
         pid_t result = waitpid(kasa_pid, &status, 0);
         if (result > 0) {
 
@@ -165,9 +163,13 @@ void poczekaj_na_pracownikow() {
     log_message(logger_id,"[PARK] Czekam na zakonczenie pracowników...\n");
     for (size_t i = 0; i <  pracownicy_pids.size(); i++) {
         int status;
-        pid_t pid = waitpid(pracownicy_pids[i], &status, 0);
-        if (pid > 0) {
-            printf("[PARK] Pracownik %zu (PID: %d) zakonczył pracę\n", i, pid);
+        if (pracownicy_pids[i] > 0) {
+            kill(pracownicy_pids[i],SIGUSR1);
+            pid_t pid = waitpid(pracownicy_pids[i], &status, 0);
+            if (pid > 0) {
+
+                printf("[PARK] Pracownik %zu (PID: %d) zakonczył pracę\n", i, pid);
+            }
         }
     }
 

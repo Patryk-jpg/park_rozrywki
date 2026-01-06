@@ -65,7 +65,9 @@ int main(int argc, char* argv[]) {
     g_klient.czasWRestauracji =0;
 
     if (g_klient.wiek > 18 && random_chance(30)) {
+
         g_klient.ma_dziecko = true;
+        g_klient.dzieckoInfo = std::make_unique<dziecko>();  // ← DODAJ!
         g_klient.dzieckoInfo->wiek = random_int(1, 13);
         g_klient.dzieckoInfo->wzrost = random_int(50, 170);
     }
@@ -180,7 +182,7 @@ void wejdz_do_parku() {
 
 int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
     SimTime czas_zakonczenia;
-    SimTime czas_rozpoczecia;
+    SimTime czas_rozpoczecia = getTime();
     if (!park_otwarty()) {
         log_message(logger_id,"Klient %d: park zamknięty, nie może iść na atrakcję\n", identifier);
         return -3;
