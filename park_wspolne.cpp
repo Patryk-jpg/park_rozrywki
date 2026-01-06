@@ -189,7 +189,7 @@ void log_message( int logger_id, const char* format, ...) {
     vsnprintf(msg.message, sizeof(msg.message), format, args);
     va_end(args);
 
-    if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), IPC_NOWAIT) == -1) {
+    if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
         if (errno == EAGAIN) {
             fprintf(stderr, "[LOG OVERFLOW] %s\n", msg.message);
         } else {
@@ -206,7 +206,7 @@ void end_logger(int logger_id) {
     LogMessage msg;
     msg.mtype = 2;
     strcpy(msg.message, "ZAKONCZONO LOGGER\n");
-    if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), IPC_NOWAIT) == -1) {
+    if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
         if (errno == EAGAIN) {
             fprintf(stderr, "[LOG OVERFLOW] %s\n", msg.message);
         } else {

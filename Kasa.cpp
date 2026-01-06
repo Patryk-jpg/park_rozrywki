@@ -88,7 +88,7 @@ void wydrukuj_paragon(pid_t pid, const serwer_message& bilet, const payment_mess
     printf("SUMA:               %7.2f zł\n", suma);
     printf("========================================\n\n");
     fflush(stdout);
-    log_message(logger_id, "PARAGON - Klient %d, osób: %d koszt (B+R+C|T): (%7.2f + %7.2f + %7.2f | %7.2f ) czas w restauracji:%d, nadmiarowy %d\n", pid, bilet.ilosc_osob,kwota_bilet,koszt_restauracji,
+    log_message(logger_id, "PARAGON - Klient %d, osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", pid, bilet.ilosc_osob,kwota_bilet,koszt_restauracji,
         doplata, suma, payment.czasWRestauracji, czas_nadmiarowy );
 
 }
@@ -107,6 +107,7 @@ int main(int argc, char *argv[]) {
     sigemptyset(&sa_int.sa_mask);
     sa_int.sa_flags = 0;
     sigaction(SIGUSR1, &sa_int, nullptr);
+    signal(SIGINT, SIG_IGN);
 
     // Inicjalizacja
     float zarobki = 0.0f;

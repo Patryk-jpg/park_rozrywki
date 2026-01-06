@@ -167,18 +167,18 @@ void poczekaj_na_pracownikow() {
         int status;
         pid_t pid = waitpid(pracownicy_pids[i], &status, 0);
         if (pid > 0) {
-            log_message(logger_id,"[PARK] Pracownik %zu (PID: %d) zakonczył pracę\n", i, pid);
+            printf("[PARK] Pracownik %zu (PID: %d) zakonczył pracę\n", i, pid);
         }
     }
 
-    log_message(logger_id,"[PARK] Usuwam kolejki pracowników...\n");
+    log_message(logger_id,"[PARK] pracownicy zakończeni, usuwam kolejki pracowników...\n");
     for (int i = 0; i < LICZBA_ATRAKCJI; i++) {
         int kolejka_id = g_park->pracownicy_keys[i];
         if (kolejka_id > 0) {
             if (msgctl(kolejka_id, IPC_RMID, NULL) == -1) {
                 PRINT_ERROR("msgctl IPC_RMID podczas zakończenia pracowników");
             } else {
-                log_message(logger_id,"[PARK] Usunięto kolejkę atrakcji %d\n", i);
+                printf("[PARK] Usunięto kolejkę atrakcji %d\n", i);
             }
             wait_semaphore(g_park->park_sem,0,0);
             g_park->pracownicy_keys[i] = -1;  // Oznacz jako nieważną
