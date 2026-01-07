@@ -125,26 +125,9 @@ void wejdz_do_parku() {
     }
 
     msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
-
     serwer_message reply;
-
-    while (true) {
-        ssize_t result = msgrcv(kasaId, &reply, sizeof(reply) - sizeof(long),
-                                g_klient.pidKlienta, IPC_NOWAIT);
-        if (result != -1) {
-            break; // Otrzymano odpowiedź
-        }
-        if (ewakuacja) {
-            log_message(logger_id,"Klient %d: ewakuacja podczas oczekiwania w kolejce\n", g_klient.pidKlienta);
-            wyjdz_z_parku();
-            return;
-        }
-        if (!g_park->park_otwarty) {
-            log_message(logger_id,"Klient %d: przestaje czekać na wejście do parku bo park się zamknął\n", g_klient.pidKlienta);
-            return;
-        }
-        usleep(50000);
-    }
+    msgrcv(kasaId, &reply, sizeof(reply) - sizeof(long),
+                                g_klient.pidKlienta, 0);
     curTime = getTime();
     log_message(logger_id,"%02d:%02d - Klient %d wychodzi z kolejki do kasy\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
     fflush(stdout);
@@ -209,18 +192,9 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
         }
     }
 
-    while (true) {
-        ssize_t result = msgrcv(atrakcja_id, &mes, sizeof(mes) - sizeof(long),
-                                g_klient.pidKlienta, IPC_NOWAIT);
-        if (result != -1) {
-            break; // Otrzymano odpowiedź
-        }
-        if (ewakuacja) {
-            log_message(logger_id,"Klient %d: ewakuacja podczas oczekiwania na %s\n",identifier, atrakcje[nr_atrakcji].nazwa);
-            return -3;
-        }
-        usleep(50000);
-    }
+    msgrcv(atrakcja_id, &mes, sizeof(mes) - sizeof(long),
+                                g_klient.pidKlienta, 0);
+
 
     if (mes.ack == -1) {
         log_message(logger_id,"Klient %d: brak miejsca na %s\n", identifier, atrakcje[nr_atrakcji].nazwa);
@@ -263,7 +237,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
                            identifier, atrakcje[nr_atrakcji].nazwa);
                 return mes.ack;
             }
-            usleep(10000);
+            //usleep(10000);
         }
 
         czas_zakonczenia = getTime();
@@ -275,23 +249,17 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
         mes.ack = identifier;
         mes.wagonik = moj_wagonik;
         msgsnd(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), 0);
-        while (true) {
-            ssize_t result = msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
-                                    g_klient.pidKlienta, IPC_NOWAIT);
-            if (result != -1) break;
-            if (ewakuacja) return -3;
-            usleep(50000);
-        }
+
+        msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
+                                    g_klient.pidKlienta, 0);
+
 
     }else {
         // Normalne zakończenie atrakcji
-        while (true) {
-            ssize_t result = msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
-                                    g_klient.pidKlienta, IPC_NOWAIT);
-            if (result != -1) break;
-            if (ewakuacja) return -3;
-            usleep(50000);
-        }
+
+         msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
+                                    g_klient.pidKlienta, 0);
+
     }
     if (nr_atrakcji == 16) {
         int czas_pobytu = czas_zakonczenia.toMinutes() - czas_rozpoczecia.toMinutes();
@@ -387,18 +355,9 @@ void wyjdz_z_parku() {
 
     msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
 
-    while (true) {
-        ssize_t result = msgrcv(kasaId, &k_msg, sizeof(k_msg) - sizeof(long),
-                                g_klient.pidKlienta, IPC_NOWAIT);
-        if (result != -1) break;
-        if (ewakuacja) return;
-        if (!g_park->park_otwarty) {
-            log_message(logger_id,"%02d:%02d - Klient %d WYCHODZI z parku bez czekania na paragon\n",
-               curTime.hour, curTime.minute, g_klient.pidKlienta);
-            return;
-        }
-        usleep(50000);
-    }
+    msgrcv(kasaId, &k_msg, sizeof(k_msg) - sizeof(long),
+                                g_klient.pidKlienta, 0);
+
 
     curTime = getTime();
     log_message(logger_id,"%02d:%02d - Klient %d WYCHODZI z parku, zapłacił %.2f zł\n",
@@ -422,16 +381,10 @@ void  zaplac_za_restauracje_z_zewnatrz(int czas_pobytu) {
 
     msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
 
-    while (true) {
-        ssize_t result = msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long),
-                                g_klient.pidKlienta, IPC_NOWAIT);
-        if (result != -1) break;
-        if (ewakuacja) return;
-        // if (!g_park->park_otwarty) {
-        //     return;
-        // }
-        usleep(50000);
-    }
+
+    msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long),
+                                g_klient.pidKlienta, 0);
+
 
     curTime = getTime();
     log_message(logger_id,"%02d:%02d - Klient %d wychodzi z restauracji, zapłacił %.2f zł\n",

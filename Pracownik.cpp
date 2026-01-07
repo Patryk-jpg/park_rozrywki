@@ -82,12 +82,13 @@ void ewakuuj_wszystkich(int wejscieDoAtrakcji, czasy czasyJazdy[], int iloscWago
 
 
 int main(int argc, char* argv[]) {
-
-    struct sigaction sa_int{};
-    sa_int.sa_handler = sig3handler;
-    sigemptyset(&sa_int.sa_mask);
-    sa_int.sa_flags = 0;
-    sigaction(SIGINT, &sa_int, nullptr);
+    //
+    // struct sigaction sa_int{};
+    // sa_int.sa_handler = sig3handler;
+    // sigemptyset(&sa_int.sa_mask);
+    // sa_int.sa_flags = 0;
+    // sigaction(SIGINT, &sa_int, nullptr);
+    signal(SIGINT, SIG_IGN);
 
     struct sigaction sa_usr1{};
     sa_usr1.sa_handler = sig1handler;

@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
 
         // Sprawdź czy są klienci w kolejce
         if (buf.msg_qnum == 0) {
-            usleep(10000); // 10ms
+            //usleeep(10000); // 10ms
             continue;
         }
 
@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
                                 1, IPC_NOWAIT);
 
         if (result == -1) {
-            usleep(10000);
+            //usleeep(10000);
             continue;
         }
 

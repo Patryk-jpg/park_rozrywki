@@ -14,7 +14,7 @@ int kasa_id = -1;
 pthread_t g_logger_tid;
 int logger_id =  -1;
 static volatile sig_atomic_t signal3 = 0;
-bool logger_running = true;
+bool testing = true;
 
 
 void* watek_logger(void* arg) {
@@ -192,11 +192,10 @@ void poczekaj_na_pracownikow() {
 
 void poczekaj_na_klientow() {
 
-
     log_message(logger_id,"[PARK] Czekam na zakonczenie klientów...\n");
     for (size_t i = 0; i <  klienci_pids.size(); i++) {
         int status;
-        pid_t pid = waitpid(klienci_pids[i], &status, 0);
+        pid_t pid = waitpid(klienci_pids[i], &status, 0); //TODO obsluga bledow do waitpida
         // if (pid > 0) {
         //     log_message(logger_id,"[PARK] klient %zu (PID: %d) nie żyje\n", i, pid);
         // }
@@ -272,6 +271,7 @@ int   main() {
 
     while (true) {
 
+
         wait_semaphore(g_park->park_sem,0,0);
             int licznik_klientow = g_park->clients_count;
             bool otwarty = g_park->park_otwarty;
@@ -315,7 +315,7 @@ int   main() {
         signal_semaphore(g_park->park_sem,0);
 
 
-        if (random_chance(40) && otwarty && !signal3) {
+        if (random_chance(100) && otwarty && !signal3) {
             pid_t pid = fork();
             if (pid == 0) {
                 // Proces klienta

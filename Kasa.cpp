@@ -88,7 +88,7 @@ void wydrukuj_paragon(pid_t pid, const serwer_message& bilet, const payment_mess
     printf("SUMA:               %7.2f zł\n", suma);
     printf("========================================\n\n");
     fflush(stdout);
-    log_message(logger_id, "[KASA] - Klient %d, osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", pid, bilet.ilosc_osob,kwota_bilet,koszt_restauracji,
+    log_message(logger_id, "[KASA] - Klient %d , osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", pid, bilet.ilosc_osob,kwota_bilet,koszt_restauracji,
         doplata, suma, payment.czasWRestauracji, czas_nadmiarowy );
 
 }
@@ -96,7 +96,8 @@ void wydrukuj_paragon(pid_t pid, const serwer_message& bilet, const payment_mess
 
 
 int main(int argc, char *argv[]) {
-
+    g_park = attach_to_shared_block();
+    logger_id = g_park->logger_id;
 
     // Ignoruj SIGINT (obsługuje go Kierownik)
     signal(SIGINT, SIG_IGN);
@@ -115,8 +116,7 @@ int main(int argc, char *argv[]) {
     log_message(logger_id,"[KASA] - CZYNNA (PID: %d)\n", getpid());
     fflush(stdout);
 
-    g_park = attach_to_shared_block();
-    logger_id = g_park->logger_id;
+
 
     int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
 
@@ -172,10 +172,10 @@ int main(int argc, char *argv[]) {
             payment_request.mtype = payment_request.pid;
             payment_request.suma = total;
 
-            // jesli klient dalej czeka na paragon to mu go daj
-            if (g_park->park_otwarty && g_park->clients_count != 0) {
-                msgsnd(kasaId, &payment_request, sizeof(payment_request) - sizeof(long), 0);
-            }
+            // daj paragon
+
+            msgsnd(kasaId, &payment_request, sizeof(payment_request) - sizeof(long), 0);
+
 
             // Aktualizuj statystyki
             zarobki += total;
@@ -256,11 +256,11 @@ int main(int argc, char *argv[]) {
         bool otwarty = g_park->park_otwarty;
         signal_semaphore(g_park->park_sem, 0);
 
-        if (!otwarty && klienci_w_parku == 0) {
-            log_message(logger_id,"[KASA] - Park zamknięty, brak klientów, zamykam kasę\n");
-            fflush(stdout);
-            break;
-        }
+        // if (!otwarty && klienci_w_parku == 0) {
+        //     log_message(logger_id,"[KASA] - Park zamknięty, brak klientów, zamykam kasę\n");
+        //     fflush(stdout);
+        //     break;
+        // }
         usleep(1000);
 
     }
