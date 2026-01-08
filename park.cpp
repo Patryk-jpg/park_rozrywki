@@ -69,10 +69,15 @@ void poczekaj_na_kasy() {
 
 
     if (kasa_pid > 0) {
+        kasa_message msg{0};
+
         int status;
         log_message(logger_id,"[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
         printf("[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
-        kill(kasa_pid, SIGUSR1);
+
+        msg.mtype = 105;
+        msgsnd(kasa_id, &msg, sizeof(msg) - sizeof(long), 0);
+
         pid_t result = waitpid(kasa_pid, &status, 0);
         if (result > 0) {
 
@@ -112,7 +117,6 @@ void uruchom_kase() {
         _exit(1);
     }
     kasa_pid = pid;
-    usleep(10000);
 }
 void uruchom_kase_restauracji() {
     log_message(logger_id,"[PARK] Uruchamianie kasy restauracji...\n");
@@ -253,8 +257,11 @@ int   main() {
     }
 
     int park_sem_key = ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED + 2);
+    int msg_overflow_sem_key =  ftok(SEED_FILENAME_SEMAPHORES, SEM_SEED + 3);
+    int msg_overflow_sem = allocate_semaphore(msg_overflow_sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
     int park_sem = allocate_semaphore(park_sem_key, 1, 0600| IPC_CREAT | IPC_EXCL);
     initialize_semaphore(park_sem, 0, 1);
+    initialize_semaphore(msg_overflow_sem, 0, 400);
 
     for (int i = 0; i < LICZBA_ATRAKCJI; i++) {
         g_park->pracownicy_keys[i] = create_message_queue(SEED_FILENAME_QUEUE, i, 0600);
@@ -262,7 +269,7 @@ int   main() {
 
     g_park->clients_count =  0;;
     g_park->park_sem = park_sem;
-
+    g_park->msg_overflow_sem = msg_overflow_sem;
     uruchom_pracownikow();
     uruchom_kase();
     uruchom_kase_restauracji();
@@ -369,7 +376,7 @@ int   main() {
         PRINT_ERROR("msgctl IPC_RMID kasa");
     }
     free_semaphore(g_park->park_sem, 0);
-
+    free_semaphore(g_park->msg_overflow_sem, 0);
     detach_from_shared_block(g_park);
     destroy_shared_block((char*)SEED_FILENAME_PARK);
     return 0;

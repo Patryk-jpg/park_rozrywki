@@ -128,6 +128,7 @@ struct park_wspolne {
     int park_sem;
     int clients_count;
     int logger_id;
+    int msg_overflow_sem;
 };
 
 // Parametry atrakcji
@@ -196,7 +197,7 @@ const biletInfo bilety[5] = {
 
 // Wiadomość od klienta do kasy (zakup biletu)
 struct klient_message {
-    long mtype;                    // 1=VIP, 5=normalny
+    //long mtype;                    // 1=VIP, 5=normalny
     int typ_biletu;
     int ilosc_biletow;
     int ilosc_osob;
@@ -205,7 +206,7 @@ struct klient_message {
 
 // Odpowiedź od kasy do klienta
 struct serwer_message {
-    long mtype;                    // PID klienta
+    //long mtype;                    // PID klienta
     SimTime start_biletu;
     SimTime end_biletu;
     float cena;
@@ -216,7 +217,7 @@ struct serwer_message {
 
 // Płatność przy wyjściu
 struct payment_message {
-    long mtype;                    // 101=żądanie, PID=odpowiedź
+    //long mtype;                    // 101=żądanie, PID=odpowiedź
     pid_t pid;
     int czasWRestauracji;
     float suma;
@@ -243,6 +244,15 @@ struct restauracja_message {
 struct LogMessage {
     long mtype;
     char message[128];
+};
+
+struct kasa_message {
+    long mtype;
+    union {
+        klient_message klient;
+        serwer_message serwer;
+        payment_message payment;
+    };
 };
 
 // ===== FUNKCJE POMOCNICZE =====

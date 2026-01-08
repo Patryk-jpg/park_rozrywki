@@ -188,13 +188,22 @@ void log_message( int logger_id, const char* format, ...) {
     va_start(args, format);
     vsnprintf(msg.message, sizeof(msg.message), format, args);
     va_end(args);
-
-    if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+    while (true) {
+        if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), 0) != -1) {
+            break;
+        }
         if (errno == EAGAIN) {
             fprintf(stderr, "[LOG OVERFLOW] %s\n", msg.message);
-        } else {
-            PRINT_ERROR("msgsnd log");
+            break;
         }
+        if (errno == EINTR) {
+            continue;
+        }
+        else {
+            PRINT_ERROR("msgsnd log");
+            break;
+        }
+
     }
 }
 

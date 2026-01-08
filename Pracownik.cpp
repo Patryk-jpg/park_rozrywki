@@ -60,7 +60,9 @@ void ewakuuj_wszystkich(int wejscieDoAtrakcji, czasy czasyJazdy[], int iloscWago
                 ACKmes mes;
                 mes.mtype = pid;
                 mes.ack = -3; // -3 = ewakuacja
-                if (!contains(anulowalne, nr_atrakcji)){usleep(MINUTA);}
+                if (!contains(anulowalne, nr_atrakcji)) {
+                    usleep(MINUTA);
+                }
                 msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0);
             }
             czasyJazdy[i].pids.clear();
@@ -184,7 +186,7 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            usleep(10000);
+            //usleep(10000);
             continue;
 
         }
@@ -284,7 +286,7 @@ int main(int argc, char* argv[]) {
                 fflush(stdout);
             }
         }
-        usleep(5000);
+        //usleep(5000);
     }
 
     // ===== ZAKOŃCZENIE PRACY =====

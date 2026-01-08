@@ -106,42 +106,46 @@ void wejdz_do_parku() {
         return;
     }
     // Przygotowanie wiadomości do kasy
-    klient_message k_msg{};
-    k_msg.ilosc_osob = g_klient.ilosc_osob;
-    k_msg.typ_biletu = g_klient.typ_biletu;
-    k_msg.ilosc_biletow = g_klient.ilosc_osob;
-    k_msg.pid_klienta = g_klient.pidKlienta;
+    kasa_message k_msg{0};
+    k_msg.klient.ilosc_osob = g_klient.ilosc_osob;
+    k_msg.klient.typ_biletu = g_klient.typ_biletu;
+    k_msg.klient.ilosc_biletow = g_klient.ilosc_osob;
+    k_msg.klient.pid_klienta = g_klient.pidKlienta;
 
     // VIP ma priorytet (mtype=1) i darmowy bilet
     SimTime curTime = getTime();
     if (g_klient.czyVIP) {
         k_msg.mtype = MSG_TYPE_VIP_TICKET;
-        k_msg.typ_biletu = BILETVIP;
+        k_msg.klient.typ_biletu = BILETVIP;
         log_message(logger_id,"%02d:%02d - Klient %d (VIP) wchodzi do kolejki priorytetowej\n", curTime.hour,curTime.minute, g_klient.pidKlienta);
     } else {
         k_msg.mtype = MSG_TYPE_STANDARD_TICKET;
         log_message(logger_id,"%02d:%02d - Klient %d wchodzi do kolejki (bilet: %s, osób: %d)\n",curTime.hour, curTime.minute,
                    g_klient.pidKlienta, bilety[g_klient.typ_biletu].nazwa, g_klient.ilosc_osob);
     }
+    wait_semaphore(g_park->msg_overflow_sem, 0,0);
+    msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long),0);
 
-    msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
-    serwer_message reply;
+    log_message(logger_id, "[KASA MESSAGE] - enter\n");
+
+
+    kasa_message reply{0};
     msgrcv(kasaId, &reply, sizeof(reply) - sizeof(long),
                                 g_klient.pidKlienta, 0);
     curTime = getTime();
     log_message(logger_id,"%02d:%02d - Klient %d wychodzi z kolejki do kasy\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
     fflush(stdout);
 
-    if (reply.status == -1) {
+    if (reply.serwer.status == -1) {
         log_message(logger_id,"Nie udalo sie wejsc do parku, klient %d ucieka\n", g_klient.pidKlienta);
         return;
     }
 
     // OD TERAZ KLIENT W PARKU
 
-    g_klient.czasWejscia = reply.start_biletu;
-    g_klient.cena = reply.cena;
-    g_klient.czasWyjscia = reply.end_biletu;
+    g_klient.czasWejscia = reply.serwer.start_biletu;
+    g_klient.cena = reply.serwer.cena;
+    g_klient.czasWyjscia = reply.serwer.end_biletu;
     g_klient.wParku = true;
 
 
@@ -307,9 +311,9 @@ void baw_sie() {
 
        if (max_proby <= 0) {
            //log_message(logger_id,"Klient %d: brak dostępnych atrakcji, czeka\n", g_klient.pidKlienta);
-           usleep(100000); // Czekaj 100ms
+           //usleep(100000); // Czekaj 100ms
            curTime = getTime();
-           continue;
+           break;
        }
 
         int status = idz_do_atrakcji(nr_atrakcji, g_klient.pidKlienta);
@@ -332,11 +336,11 @@ void baw_sie() {
             }
         }
 
-        usleep(1000);
+        //usleep(1000);
         curTime = getTime();
     }
 
-    usleep(1000);
+    //usleep(1000);
     log_message(logger_id,"Klient %d: upłynął czas biletu, wychodzi\n", g_klient.pidKlienta);
     wyjdz_z_parku();
 }
@@ -344,24 +348,27 @@ void baw_sie() {
 void wyjdz_z_parku() {
     int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
 
-    payment_message k_msg;
-    k_msg.czasWRestauracji = g_klient.czasWRestauracji;
-    k_msg.pid = g_klient.pidKlienta;
-    k_msg.wiekDziecka = g_klient.ma_dziecko ? g_klient.dzieckoInfo->wiek : -1;
-    k_msg.czasWyjscia = getTime();
-    k_msg.mtype = MSG_TYPE_EXIT_PAYMENT;
+    kasa_message payment_msg{0};
+    payment_msg.payment.czasWRestauracji = g_klient.czasWRestauracji;
+    payment_msg.payment.pid = g_klient.pidKlienta;
+    payment_msg.payment.wiekDziecka = g_klient.ma_dziecko ? g_klient.dzieckoInfo->wiek : -1;
+    payment_msg.payment.czasWyjscia = getTime();
+    payment_msg.mtype = MSG_TYPE_EXIT_PAYMENT;
     SimTime curTime = getTime();
     log_message(logger_id,"%02d:%02d - Klient %d idzie do kasy zapłacić przy wyjściu\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
 
-    msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
+    wait_semaphore(g_park->msg_overflow_sem,0,0);
 
-    msgrcv(kasaId, &k_msg, sizeof(k_msg) - sizeof(long),
+    msgsnd(kasaId, &payment_msg, sizeof(payment_msg) - sizeof(long), 0);
+    log_message(logger_id, "[KASA MESSAGE] - exit\n");
+
+    msgrcv(kasaId, &payment_msg, sizeof(payment_msg) - sizeof(long),
                                 g_klient.pidKlienta, 0);
 
 
     curTime = getTime();
     log_message(logger_id,"%02d:%02d - Klient %d WYCHODZI z parku, zapłacił %.2f zł\n",
-               curTime.hour, curTime.minute, g_klient.pidKlienta, k_msg.suma);
+               curTime.hour, curTime.minute, g_klient.pidKlienta, payment_msg.payment.suma);
 
 }
 
