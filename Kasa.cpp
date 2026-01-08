@@ -7,7 +7,7 @@ park_wspolne* g_park = nullptr;
 static volatile sig_atomic_t koniec = 0;
 int logger_id = -1;
 int kasaId = -1;
-int zarobki = 0;
+float zarobki = 0.0f;
 int transakcje = 0;
 std::map<pid_t, serwer_message> clients_pids;
 
@@ -132,7 +132,7 @@ void handle_enter(klient_message request) {
             ssize_t r = msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
             signal(g_park->msg_overflow_sem, 0);
 
-            log_message(logger_id, "[KASA MESSAGE] - confirm enter\n");
+            //log_message(logger_id, "[KASA MESSAGE] - confirm enter\n");
 
             if (reply.serwer.status == 0) {
                 clients_pids[request.pid_klienta] = reply.serwer;
@@ -190,9 +190,7 @@ void handle_exit(const payment_message & payment_request) {
     signal(g_park->msg_overflow_sem, 0);
 
 
-    log_message(logger_id, "[KASA MESSAGE] - confirm exit\n");
-
-
+    //log_message(logger_id, "[KASA MESSAGE] - confirm exit\n");
     // Aktualizuj statystyki
     zarobki += total;
     transakcje++;
@@ -273,7 +271,7 @@ int main(int argc, char *argv[]) {
 
     }
 
-    log_message(logger_id,"[KASA] Zamykam kase -Liczba transakcji: %d,Suma zarobków: %.2f zł\n",transakcje,zarobki);
+    log_message(logger_id,"[KASA] Zamykam kase -Liczba transakcji: %d,Suma zarobków: %.2f zł\n",transakcje, zarobki);
 
     fflush(stdout);
 

@@ -49,11 +49,11 @@
 
 
 // ===== TYPY KOMUNIKATÓW =====
-#define MSG_TYPE_VIP_TICKET 1           // VIP - priorytet
-#define MSG_TYPE_STANDARD_TICKET 5      // Zwykły bilet
+#define MSG_TYPE_VIP_TICKET 10           // VIP - priorytet
+#define MSG_TYPE_STANDARD_TICKET 15      // Zwykły bilet
 #define MSG_TYPE_JOIN_ATTRACTION 100    // Wejście do atrakcji
 #define MSG_TYPE_QUIT_ATTRACTION 99     // Rezygnacja z atrakcji
-#define MSG_TYPE_EXIT_PAYMENT 101       // Płatność przy wyjściu
+#define MSG_TYPE_EXIT_PAYMENT 1       // Płatność przy wyjściu
 
 #define SEZON_LETNI true
 

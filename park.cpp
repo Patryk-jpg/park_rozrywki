@@ -199,10 +199,22 @@ void poczekaj_na_klientow() {
     log_message(logger_id,"[PARK] Czekam na zakonczenie klientów...\n");
     for (size_t i = 0; i <  klienci_pids.size(); i++) {
         int status;
+
         pid_t pid = waitpid(klienci_pids[i], &status, 0); //TODO obsluga bledow do waitpida
-        // if (pid > 0) {
-        //     log_message(logger_id,"[PARK] klient %zu (PID: %d) nie żyje\n", i, pid);
-        // }
+
+        while ((pid = waitpid(klienci_pids[i], &status, 0)) == -1 && errno == EINTR) {
+            // przerwanie sygnałem, spróbuj ponownie
+            continue;
+        }
+
+        if (pid == -1) {
+            if (errno == ECHILD) {
+                // Proces już zakończony i odebrany — ignorujemy
+            } else {
+                PRINT_ERROR("waitpid");
+            }
+        }
+
     }
     log_message(logger_id, "[PARK] - Klienci zakończeni");
 };
@@ -336,7 +348,7 @@ int   main() {
             }
         }
 
-        usleep(MINUTA);
+        //usleep(MINUTA);
     }
 
     wait_semaphore(g_park->park_sem,0,0);

@@ -126,7 +126,7 @@ void wejdz_do_parku() {
     wait_semaphore(g_park->msg_overflow_sem, 0,0);
     msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long),0);
 
-    log_message(logger_id, "[KASA MESSAGE] - enter\n");
+    //log_message(logger_id, "[KASA MESSAGE] - enter\n");
 
 
     kasa_message reply{0};
@@ -360,7 +360,7 @@ void wyjdz_z_parku() {
     wait_semaphore(g_park->msg_overflow_sem,0,0);
 
     msgsnd(kasaId, &payment_msg, sizeof(payment_msg) - sizeof(long), 0);
-    log_message(logger_id, "[KASA MESSAGE] - exit\n");
+    //log_message(logger_id, "[KASA MESSAGE] - exit\n");
 
     msgrcv(kasaId, &payment_msg, sizeof(payment_msg) - sizeof(long),
                                 g_klient.pidKlienta, 0);
