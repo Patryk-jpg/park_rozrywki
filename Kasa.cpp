@@ -31,6 +31,7 @@ int update_licznik_klientow(klient_message& request) {
     }
     if (g_park->clients_count + request.ilosc_osob > MAX_KLIENTOW_W_PARKU ) {
         signal_semaphore(g_park->park_sem, 0);
+        log_message(logger_id,"[TEST-1] - odrzucono klienta bo ilosć klientów: %d\n", g_park->clients_count );
         return -1;
     }
     g_park->clients_count += request.ilosc_osob;
@@ -43,7 +44,7 @@ float oblicz_doplate(const serwer_message& bilet_info, int czas_nadmiarowy) {
 
     // Cena za minutę = (cena biletu / czas biletu w min) * 2 (100% dopłata)
     int czas_biletu_min = bilety[bilet_info.typ_biletu].czasTrwania * 60;
-    float cena_za_minute = (bilet_info.cena / (float)czas_biletu_min) * 2.0f;
+    float cena_za_minute = (bilety[bilet_info.typ_biletu].cena / (float)czas_biletu_min) * 2.0f;
 
     return cena_za_minute * czas_nadmiarowy;
 }
@@ -93,8 +94,8 @@ void wydrukuj_paragon(pid_t pid, const serwer_message& bilet, const payment_mess
     printf("SUMA:               %7.2f zł\n", suma);
     printf("========================================\n\n");
     fflush(stdout);
-    log_message(logger_id, "[KASA] - Klient %d , osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", pid, bilet.ilosc_osob,kwota_bilet,koszt_restauracji,
-        doplata, suma, payment.czasWRestauracji, czas_nadmiarowy );
+    // log_message(logger_id, "[KASA] - Klient %d , osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", pid, bilet.ilosc_osob,kwota_bilet,koszt_restauracji,
+    //     doplata, suma, payment.czasWRestauracji, czas_nadmiarowy );
 
 }
 
@@ -168,11 +169,11 @@ void handle_exit(const payment_message & payment_request) {
         kwota_bilet = 0.0f;
     }
     float koszt_rest = oblicz_koszt_restauracji(payment_request.czasWRestauracji) * bilet.ilosc_osob;
-
+    int czas_nadmiarowy = 0;
     float doplata = 0.0f;
     if (bilet.typ_biletu != BILETVIP) {
         wait_semaphore(g_park->park_sem, 0, 0);
-        int czas_nadmiarowy = g_park->czas_w_symulacji.toMinutes() - bilet.end_biletu.toMinutes();
+        czas_nadmiarowy = g_park->czas_w_symulacji.toMinutes() - bilet.end_biletu.toMinutes();
         signal_semaphore(g_park->park_sem, 0);
 
         if (czas_nadmiarowy > 0) {
@@ -184,8 +185,12 @@ void handle_exit(const payment_message & payment_request) {
     reply.payment = payment_request;
     reply.payment.suma = total;
 
+    if (czas_nadmiarowy < 0) {
+        czas_nadmiarowy = 0;
+    }
     // daj paragon
-
+    log_message(logger_id, "[KASA] - Klient %d , osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", payment_request.pid, bilet.ilosc_osob,kwota_bilet,koszt_rest,
+        doplata, total, payment_request.czasWRestauracji, czas_nadmiarowy );
     msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
     signal(g_park->msg_overflow_sem, 0);
 
@@ -235,7 +240,9 @@ int main(int argc, char *argv[]) {
             fflush(stdout);
             break;
         }
-
+        // msgctl(kasaId, IPC_STAT, &buf);
+        // log_message(logger_id,"[TEST-2] [KASA] - Oczekuję na wiadomość, w kolejce: %lu wiadomości\n",
+        //             buf.msg_qnum);
         kasa_message msg{0};
 
         ssize_t r = msgrcv(kasaId, &msg,sizeof(msg) - sizeof(long),-105,  0);
@@ -244,9 +251,14 @@ int main(int argc, char *argv[]) {
             if (errno == EIDRM) break;     // Kolejka usunięta
             break;
         }
+        wait_semaphore(g_park->park_sem, 0, 0);
+        SimTime curTime = g_park->czas_w_symulacji;
+        signal_semaphore(g_park->park_sem, 0);
+
         switch (msg.mtype) {
             case MSG_TYPE_VIP_TICKET:
             case MSG_TYPE_STANDARD_TICKET:
+                //log_message(logger_id,"[TEST-2] %02d:%02d [KASA] - Odebrano wiadomość od klienta  %d, typ: %ld\n", curTime.hour, curTime.minute,msg.klient.pid_klienta, msg.mtype);
                 handle_enter(msg.klient);
                 break;
 

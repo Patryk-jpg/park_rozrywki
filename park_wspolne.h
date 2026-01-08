@@ -139,21 +139,21 @@ const Atrakcja atrakcje[17] = {
     // A2: Magiczna pompa
     {1, "Magiczna pompa", 12,12, 30, 0, 999, 100, 999, -1,120, true, true},
     // A3: Wyprawa do groty
-    {2, "Wyprawa do groty",16, 16, 25, 2, 13, 120, 999, 13, -1,true, true},
+    {2, "Wyprawa do groty",16, 16, 25, 2, 999, 120, 999, 13, -1,true, true},
     // A4: Zatoka bambusowa
     {3, "Zatoka bambusowa", 18,18, 35, 0, 999, 110, 999, -1,135, true, true},
     // A5: Smocza przygoda
-    {4, "Smocza przygoda",14, 14, 20, 2, 13, 130, 999, 13,-1, true, false},
+    {4, "Smocza przygoda",14, 14, 20, 2, 999, 130, 999, 13,-1, true, false},
     // A6: Cudowne koło
-    {5, "Cudowne kolo", 8,8, 20, 0, 13, 120, 999, 13,-1,false, false},
+    {5, "Cudowne kolo", 8,8, 20, 0, 999, 120, 999, 13,-1,false, false},
     // A7: Karuzela
-    {6, "Karuzela",12, 12, 15, 2, 13, 130, 190, 13, -1, false, false},
+    {6, "Karuzela",12, 12, 15, 2, 999, 130, 190, 13, -1, false, false},
     // A8: Kolejka mała
     {7, "Kolejka mala", 24,24, 15, 0, 999, 100, 999, -1, 120, false, false},
     // A9: Kolejka górska
-    {8, "Kolejka gorska", 4,20, 35, 4, 12, 120, 999, 12, -1, false, false},
+    {8, "Kolejka gorska", 4,20, 35, 4, 999, 120, 999, 12, -1, false, false},
     // A10: Kolejka smocza
-    {9, "Kolejka smocza", 20,20, 30, 4, 13, 120, 999, -1, -1, false, false},
+    {9, "Kolejka smocza", 20,20, 30, 4, 999, 120, 999, 13, -1, false, false},
     // A11: Mega Roller Coaster
     {10, "Mega Roller Coaster", 24,24, 30, 0, 999, 140, 195, -1, -1, false, false},
     // A12: Ławka obrotowa
@@ -161,7 +161,7 @@ const Atrakcja atrakcje[17] = {
     // A13: Kosmiczny wzmacniacz
     {12, "Kosmiczny wzmacniacz", 4,8, 20, 0, 999, 140, 195, -1, -1,true, false},
     // A14: Dom potwora
-    {13, "Dom potwora", 4,12, 20, 4, 12, 130, 999, 12,-1, true, false},
+    {13, "Dom potwora", 4,12, 20, 4, 999, 130, 999, 12,-1, true, false},
     // A15: Samochodziki
     {14, "Samochodziki", 2,20, 15, 0, 999, 120, 999, -1, -1,true, false},
     // A16: Przygoda w dżungli
@@ -187,7 +187,7 @@ struct biletInfo {
 
 const biletInfo bilety[5] = {
     {50, 2, "BILET2H"},
-    {65, 4, "BILET4H"},
+    {100, 4, "BILET4H"},
     {85, 6, "BILET6H"},
     {65, 24, "BILET1D"},
     {0, 24, "BILETVIP"},

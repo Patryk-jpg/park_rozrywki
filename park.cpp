@@ -334,10 +334,43 @@ int   main() {
         signal_semaphore(g_park->park_sem,0);
 
 
+        // if (testing) {
+        //     for (int i=0 ; i<200; i++) {
+        //         pid_t pid = fork();
+        //         if (pid == 0) {
+        //             char arg[16];
+        //             snprintf(arg, sizeof(arg), "%d", 0);
+        //             char* args[] = {(char*)"klient", arg, NULL};
+        //             execvp("./klient", args);
+        //             perror("execvp - klient");
+        //             _exit(1);
+        //         }
+        //         else if (pid > 0) {
+        //             total_klientow++;
+        //             klienci_pids.push_back(pid);
+        //         }
+        //     }
+        //     usleep(1000);
+        //     pid_t pid = fork();
+        //     if (pid == 0) {
+        //         char arg[16];
+        //         snprintf(arg, sizeof(arg), "%d", 1);
+        //         char* args[] = {(char*)"klient", arg, NULL};
+        //         execvp("./klient", args);
+        //         perror("execvp - klient");
+        //         _exit(1);
+        //     }
+        //     else if (pid > 0) {
+        //         total_klientow++;
+        //         klienci_pids.push_back(pid);
+        //     }
+        //     testing = false;
+        // }
+        //
         if (random_chance(100) && otwarty && !signal3) {
             pid_t pid = fork();
             if (pid == 0) {
-                // Proces klienta
+                //Proces klienta
                 char* args[] = {(char*)"klient", NULL};
                 execvp("./klient", args);
                 perror("execvp - klient");
@@ -348,7 +381,7 @@ int   main() {
             }
         }
 
-        //usleep(MINUTA);
+        usleep(MINUTA);
     }
 
     wait_semaphore(g_park->park_sem,0,0);
