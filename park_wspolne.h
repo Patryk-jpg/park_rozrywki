@@ -128,7 +128,7 @@ struct park_wspolne {
     int park_sem;
     int clients_count;
     int logger_id;
-    int msg_overflow_sem;
+    int kasa_reply_id;
 };
 
 // Parametry atrakcji

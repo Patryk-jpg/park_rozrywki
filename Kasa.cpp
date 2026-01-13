@@ -130,8 +130,8 @@ void handle_enter(klient_message request) {
             signal_semaphore(g_park->park_sem, 0);
 
             // Wyślij odpowiedź
-            ssize_t r = msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
-            signal(g_park->msg_overflow_sem, 0);
+            msgsnd(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long), 0);
+            // signal(g_park->msg_overflow_sem, 0);
 
             //log_message(logger_id, "[KASA MESSAGE] - confirm enter\n");
 
@@ -156,7 +156,7 @@ void handle_exit(const payment_message & payment_request) {
     reply.mtype = payment_request.pid;
     if (clients_pids.find(payment_request.pid) == clients_pids.end()) {
         log_message(logger_id,"[KASA] - BŁĄD: Brak danych biletu dla klienta %d\n", payment_request.pid);
-        signal_semaphore(g_park->msg_overflow_sem, 0);
+        // signal_semaphore(g_park->msg_overflow_sem, 0);
         return;
     }
     wydrukuj_paragon(payment_request.pid, clients_pids[payment_request.pid], payment_request);
@@ -191,8 +191,8 @@ void handle_exit(const payment_message & payment_request) {
     // daj paragon
     log_message(logger_id, "[KASA] - Klient %d , osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", payment_request.pid, bilet.ilosc_osob,kwota_bilet,koszt_rest,
         doplata, total, payment_request.czasWRestauracji, czas_nadmiarowy );
-    msgsnd(kasaId, &reply, sizeof(reply) - sizeof(long), 0);
-    signal(g_park->msg_overflow_sem, 0);
+    msgsnd(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long), 0);
+    // signal(g_park->msg_overflow_sem, 0);
 
 
     //log_message(logger_id, "[KASA MESSAGE] - confirm exit\n");

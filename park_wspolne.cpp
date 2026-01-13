@@ -71,32 +71,25 @@ void initialize_semaphore(int semId, int number, int val) {
 int wait_semaphore(int semId, int number, int flags) {
     struct sembuf operacje[1];
     operacje[0].sem_num = number;
-    operacje[0].sem_flg = SEM_UNDO | flags;
+    operacje[0].sem_flg = flags;
     operacje[0].sem_op = -1;
 
-    int result = semop(semId, operacje, 1);
-
-    if (result == 0) {
-        return 0; // Sukces
-    }
-
-    if (errno == EINTR) {
-        return wait_semaphore(semId, number, flags); // Retry dla EINTR
-    }
-
-    if (errno == EIDRM || errno == EINVAL) {
+    while (true) {
+        int r = semop(semId, operacje, 1);
+        if (r == 0) return 0;
+        if (errno == EINTR) continue;
+        if (errno == EIDRM || errno == EINVAL) return -1;
+        PRINT_ERROR("semop wait");
         return -1;
     }
 
-    PRINT_ERROR("semop wait");
-    return -1;
 }
 
 void signal_semaphore(int semID, int number) {
     struct sembuf operacje[1];
     operacje[0].sem_num = number;
     operacje[0].sem_op = 1;
-    operacje[0].sem_flg = SEM_UNDO;
+    operacje[0].sem_flg = 0;
 
     if (semop(semID, operacje, 1) == -1) {
         if (errno != EIDRM && errno != EINVAL) {

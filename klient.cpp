@@ -113,7 +113,7 @@ void wejdz_do_parku() {
         log_message(logger_id,"Kasa zamknięta, klient %d nie wchodzi\n", g_klient.pidKlienta);
         return;
     }
-    // Przygotowanie wiadomości do kasy
+    // Przygotowanie wiadomośc  i do kasy
     kasa_message k_msg{0};
     k_msg.klient.ilosc_osob = g_klient.ilosc_osob;
     k_msg.klient.typ_biletu = g_klient.typ_biletu;
@@ -131,14 +131,14 @@ void wejdz_do_parku() {
         log_message(logger_id,"[TEST-2] %02d:%02d - Klient %d wchodzi do kolejki (bilet: %s, osób: %d)\n",curTime.hour, curTime.minute,
                    g_klient.pidKlienta, bilety[g_klient.typ_biletu].nazwa, g_klient.ilosc_osob);
     }
-    wait_semaphore(g_park->msg_overflow_sem, 0,0);
+    // wait_semaphore(g_park->msg_overflow_sem, 0,0);
     msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long),0);
 
     //log_message(logger_id, "[KASA MESSAGE] - enter\n");
 
 
     kasa_message reply{0};
-    msgrcv(kasaId, &reply, sizeof(reply) - sizeof(long),
+    msgrcv(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long),
                                 g_klient.pidKlienta, 0);
     curTime = getTime();
     log_message(logger_id,"[TEST-2] %02d:%02d - Klient %d wychodzi z kolejki do kasy: VIP? : %d\n",curTime.hour,curTime.minute, g_klient.pidKlienta, g_klient.czyVIP);
@@ -365,12 +365,12 @@ void wyjdz_z_parku() {
     SimTime curTime = getTime();
     log_message(logger_id,"%02d:%02d - Klient %d idzie do kasy zapłacić przy wyjściu\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
 
-    wait_semaphore(g_park->msg_overflow_sem,0,0);
+    // wait_semaphore(g_park->msg_overflow_sem,0,0);
 
     msgsnd(kasaId, &payment_msg, sizeof(payment_msg) - sizeof(long), 0);
     //log_message(logger_id, "[KASA MESSAGE] - exit\n");
 
-    msgrcv(kasaId, &payment_msg, sizeof(payment_msg) - sizeof(long),
+    msgrcv(g_park->kasa_reply_id, &payment_msg, sizeof(payment_msg) - sizeof(long),
                                 g_klient.pidKlienta, 0);
 
 
