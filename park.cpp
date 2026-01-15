@@ -12,6 +12,8 @@ pid_t kasa_rest_pid = -1;
 int kasa_rest_id =  -1;
 int kasa_id = -1;
 int kasa_reply_id = -1;
+int kasa_rest_reply_id = -1;
+
 pthread_t g_logger_tid;
 int logger_id =  -1;
 static volatile sig_atomic_t signal3 = 0;
@@ -76,7 +78,7 @@ void poczekaj_na_kasy() {
         log_message(logger_id,"[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
         printf("[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
 
-        msg.mtype = 105;
+        msg.mtype = MSG_TYPE_END_QUEUE;
         msgsnd(kasa_id, &msg, sizeof(msg) - sizeof(long), 0);
 
         pid_t result = waitpid(kasa_pid, &status, 0);
@@ -90,7 +92,9 @@ void poczekaj_na_kasy() {
     }
     if (kasa_rest_pid > 0) {
         int status;
-        kill(kasa_rest_pid, SIGUSR1); // SYGNAL do zatrzymania kasy (zeby nie konczyla sie zbyt szybko sama, przez malo osob w restauracji
+        restauracja_message msg{0};
+        msg.mtype = MSG_TYPE_END_QUEUE;
+        msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
 
         log_message(logger_id,"[PARK] Czekam na kasę restauracji (PID: %d)...\n", kasa_rest_pid);
         printf("[PARK] Czekam na kasę restauracji (PID: %d)...\n", kasa_rest_pid);
@@ -163,6 +167,14 @@ void sig3handler(int sig) {
     signal3 = 1;
 
 }
+
+
+void sigchld_handler(int i) {
+    while (waitpid(-1, nullptr, WNOHANG) > 0) {
+        // sprzątamy zombie
+    }
+};
+
 void poczekaj_na_pracownikow() {
 
     log_message(logger_id,"[PARK] Czekam na zakonczenie pracowników...\n");
@@ -231,6 +243,15 @@ int   main() {
 
     init_random();
 
+    struct sigaction sa_chld{};
+    sa_chld.sa_handler = sigchld_handler;
+    sigemptyset(&sa_chld.sa_mask);
+    sa_chld.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+
+    if (sigaction(SIGCHLD, &sa_chld, nullptr) == -1) {
+        PRINT_ERROR("sigaction SIGCHLD");
+        exit(1);
+    }
     // Obsługa sygnału ewakuacji
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
@@ -260,6 +281,7 @@ int   main() {
     kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED, 0644);
     logger_id = create_message_queue(SEED_FILENAME_QUEUE, 'L', 0611);
     kasa_reply_id =  create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 3, 0643);
+    kasa_rest_reply_id   = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 4, 0643);
 
     g_park = attach_to_shared_block();
     memset(g_park, 0, sizeof(park_wspolne));
@@ -267,6 +289,8 @@ int   main() {
     g_park->park_otwarty = true;
     g_park->czas_w_symulacji.hour = CZAS_OTWARCIA;
     g_park->czas_w_symulacji.minute = 0;
+    g_park->czas_w_symulacji.start_time = time(NULL);
+
     g_park->logger_id = logger_id;
 
     if (pthread_create(&g_logger_tid, nullptr, watek_logger, nullptr) != 0) {
@@ -287,6 +311,7 @@ int   main() {
     g_park->clients_count =  0;;
     g_park->park_sem = park_sem;
     g_park->kasa_reply_id = kasa_reply_id;
+    g_park->kasa_rest_reply_id = kasa_rest_reply_id;
     uruchom_pracownikow();
     uruchom_kase();
     uruchom_kase_restauracji();
@@ -318,7 +343,9 @@ int   main() {
         }
 
         wait_semaphore(g_park->park_sem,0,0);
-        g_park->czas_w_symulacji.increment_minute();
+        g_park->czas_w_symulacji.update();
+        printf("time now %02d:%02d\n", curTime.hour, curTime.minute);
+
 
         if (g_park->czas_w_symulacji.minute == 0) {
             int ludzi = g_park->clients_count;
@@ -386,7 +413,7 @@ int   main() {
             }
         }
 
-        usleep(MINUTA);
+        //usleep(MINUTA);
     }
 
     wait_semaphore(g_park->park_sem,0,0);
@@ -415,6 +442,9 @@ int   main() {
         PRINT_ERROR("msgctl IPC_RMID kasa");
     }
     if (msgctl(kasa_reply_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID kasa");
+    }
+    if (msgctl(kasa_rest_reply_id, IPC_RMID, NULL) == -1) {
         PRINT_ERROR("msgctl IPC_RMID kasa");
     }
 

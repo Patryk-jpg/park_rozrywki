@@ -46,7 +46,7 @@
 #define SEM_SEED 'S'
 #define QUEUE_REST_SEED 'R'
 #define IPC_ERROR (-1)
-
+#define TIME_SCALE 1
 
 // ===== TYPY KOMUNIKATÓW =====
 #define MSG_TYPE_VIP_TICKET 10           // VIP - priorytet
@@ -54,7 +54,7 @@
 #define MSG_TYPE_JOIN_ATTRACTION 100    // Wejście do atrakcji
 #define MSG_TYPE_QUIT_ATTRACTION 99     // Rezygnacja z atrakcji
 #define MSG_TYPE_EXIT_PAYMENT 1       // Płatność przy wyjściu
-
+#define MSG_TYPE_END_QUEUE 105 //zakoncz kolejke
 #define SEZON_LETNI true
 
 // STRUCTY
@@ -79,6 +79,7 @@ struct Atrakcja {
 void print_error_impl(const char* file, int line, const char* func, const std::string& msg);
 
 struct SimTime {
+    time_t start_time = 0;
     int hour = 0;
     int minute = 0;
 
@@ -93,7 +94,17 @@ struct SimTime {
             if (hour >= 24) hour = 0;
         }
     }
-
+    void update() {
+        time_t now = time(nullptr) - start_time;
+        int now_sim = now * TIME_SCALE;
+        int total_minutes = now_sim * TIME_SCALE;
+        hour = CZAS_OTWARCIA + total_minutes / 60;
+        minute = total_minutes % 60;
+        if (hour  >= CZAS_ZAMKNIECIA) {
+            hour  = CZAS_ZAMKNIECIA;
+            minute = 0;
+        }
+    }
     void print() const {
         printf("%02d:%02d\n", hour, minute);
     }
@@ -129,6 +140,7 @@ struct park_wspolne {
     int clients_count;
     int logger_id;
     int kasa_reply_id;
+    int kasa_rest_reply_id;
 };
 
 // Parametry atrakcji
