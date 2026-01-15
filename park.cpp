@@ -191,7 +191,7 @@ void poczekaj_na_pracownikow() {
     }
 
     log_message(logger_id,"[PARK] pracownicy zakończeni, usuwam kolejki pracowników...\n");
-    for (int i = 0; i < LICZBA_ATRAKCJI; i++) {
+    for (int i = 0; i < LICZBA_ATRAKCJI + LICZBA_ATRAKCJI; i++) {
         int kolejka_id = g_park->pracownicy_keys[i];
         if (kolejka_id > 0) {
             if (msgctl(kolejka_id, IPC_RMID, NULL) == -1) {
@@ -304,7 +304,7 @@ int   main() {
     initialize_semaphore(park_sem, 0, 1);
     // initialize_semaphore(msg_overflow_sem, 0, 400);
 
-    for (int i = 0; i < LICZBA_ATRAKCJI; i++) {
+    for (int i = 0; i < LICZBA_ATRAKCJI + LICZBA_ATRAKCJI; i++) {
         g_park->pracownicy_keys[i] = create_message_queue(SEED_FILENAME_QUEUE, i, 0600);
     }
 

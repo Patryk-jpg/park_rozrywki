@@ -201,16 +201,17 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
         return -3;
     }
     int atrakcja_id = g_park->pracownicy_keys[nr_atrakcji];
+    int atrakcja_reply_id = g_park->pracownicy_keys[nr_atrakcji + LICZBA_ATRAKCJI];
     if (atrakcja_id <= 0) {
         log_message(logger_id,"Klient %d: atrakcja %s zamknięta (kolejka nie istnieje)\n",
                    identifier, atrakcje[nr_atrakcji].nazwa);
         return -1;
     }
-    struct msqid_ds buf;
-    msgctl(atrakcja_id, IPC_STAT, &buf);
-    if ((float)buf.msg_cbytes / buf.msg_qbytes > 0.5) {
-        return -2;
-    }
+    // struct msqid_ds buf;
+    // msgctl(atrakcja_id, IPC_STAT, &buf);
+    // if ((float)buf.msg_cbytes / buf.msg_qbytes > 0.5) {
+    //     return -2;
+    // }
 
 
     // Żądanie wejścia
@@ -228,7 +229,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
         }
     }
 
-    while (msgrcv(atrakcja_id, &mes, sizeof(mes) - sizeof(long),
+    while (msgrcv(atrakcja_reply_id, &mes, sizeof(mes) - sizeof(long),
                                 g_klient.pidKlienta, 0) == -1) {
         if (errno == EINTR) continue;
         return -3;
@@ -269,7 +270,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
         while (curTime <= timeout && !ewakuacja) {
             curTime = getTime();
             // Sprawdź czy pracownik nie przerwał atrakcji
-            ssize_t mess = msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
+            ssize_t mess = msgrcv(atrakcja_reply_id, &mes, sizeof(ACKmes) - sizeof(long),
                             identifier, IPC_NOWAIT);
             if (mess != -1) {
                 log_message(logger_id,"Klient %d: %s zakończona przez pracownika\n",
@@ -294,7 +295,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
             if (errno == EAGAIN || errno == EIDRM) {return -3;}
         }
 
-        while (msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
+        while (msgrcv(atrakcja_reply_id, &mes, sizeof(ACKmes) - sizeof(long),
                                     g_klient.pidKlienta, 0) == -1) {
             if (errno == EINTR) continue;
             if (errno == EAGAIN || errno == EIDRM) {return -3;}
@@ -304,7 +305,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
     }else {
         // Normalne zakończenie atrakcji
 
-         while (msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
+         while (msgrcv(atrakcja_reply_id, &mes, sizeof(ACKmes) - sizeof(long),
                                     g_klient.pidKlienta, 0) == -1) {
              if (errno== EINTR) continue;
              if (errno == EAGAIN || errno == EIDRM) {return -3;}

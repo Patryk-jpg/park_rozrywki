@@ -52,7 +52,7 @@ int znajdzWolnyWagonik(czasy czasyJazdy[], int iloscWagonikow) {
     }
     return -1;
 }
-void ewakuuj_wszystkich(int wejscieDoAtrakcji, czasy czasyJazdy[], int iloscWagonikow, int nr_atrakcji) {
+void ewakuuj_wszystkich(int atrakcja_id, czasy czasyJazdy[], int iloscWagonikow, int nr_atrakcji) {
     log_message(logger_id,"[PRACOWNIK]- EWAKUACJA atrakcji %s - wyrzucam wszystkich klientów\n", atrakcje[nr_atrakcji].nazwa);
 
     // Wyrzuć wszystkich z wagoników
@@ -65,7 +65,7 @@ void ewakuuj_wszystkich(int wejscieDoAtrakcji, czasy czasyJazdy[], int iloscWago
                 if (!contains(anulowalne, nr_atrakcji)) {
                     usleep(MINUTA);
                 }
-                msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0);
+                msgsnd(atrakcja_id, &mes, sizeof(mes) - sizeof(long), 0);
             }
             czasyJazdy[i].pids.clear();
             czasyJazdy[i].zajete = false;
@@ -76,11 +76,11 @@ void ewakuuj_wszystkich(int wejscieDoAtrakcji, czasy czasyJazdy[], int iloscWago
 
     // Odrzuć wszystkich z kolejki
     ACKmes mes_queue;
-    while (msgrcv(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0, IPC_NOWAIT) != -1) {
+    while (msgrcv(atrakcja_id, &mes_queue, sizeof(mes_queue) - sizeof(long), 0, IPC_NOWAIT) != -1) {
         if (mes_queue.mtype == MSG_TYPE_JOIN_ATTRACTION || mes_queue.mtype == MSG_TYPE_QUIT_ATTRACTION) {
             mes_queue.mtype = mes_queue.ack;
             mes_queue.ack = -3; // -3 = ewakuacja
-            msgsnd(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), IPC_NOWAIT);
+            msgsnd(atrakcja_id, &mes_queue, sizeof(mes_queue) - sizeof(long), IPC_NOWAIT);
         }
     }
 }
@@ -126,7 +126,8 @@ int main(int argc, char* argv[]) {
          nr_atrakcji, atrakcje[nr_atrakcji].nazwa, getpid());
 
 
-    int wejscieDoAtrakcji = g_park->pracownicy_keys[nr_atrakcji];
+    int atrakcja_id = g_park->pracownicy_keys[nr_atrakcji];
+    int atrakcja_reply_id = g_park->pracownicy_keys[nr_atrakcji + LICZBA_ATRAKCJI];
 
     int iloscWagonikow = atrakcje[nr_atrakcji].limit_osob / atrakcje[nr_atrakcji].po_ile_osob_wchodzi;
     if (iloscWagonikow < 1) iloscWagonikow = 1;
@@ -143,7 +144,7 @@ int main(int argc, char* argv[]) {
 
     while (true) {
 
-        msgctl(wejscieDoAtrakcji, IPC_STAT, &buf);
+        msgctl(atrakcja_id, IPC_STAT, &buf);
 
         wait_semaphore(g_park->park_sem, 0, 0);
         int licznik_klientow = g_park->clients_count;
@@ -159,7 +160,7 @@ int main(int argc, char* argv[]) {
         if (zatrzymano) {
             if (ewakuacja) {
                 log_message(logger_id,"[PRACOWNIK-%d]- EWAKUACJA na atrakcji %s!\n",nr_atrakcji, atrakcje[nr_atrakcji].nazwa);
-                ewakuuj_wszystkich(wejscieDoAtrakcji, czasyJazdy, iloscWagonikow, nr_atrakcji);
+                ewakuuj_wszystkich(atrakcja_reply_id, czasyJazdy, iloscWagonikow, nr_atrakcji);
                 break;
             }
             log_message(logger_id,"[PRACOWNIK-%d]- ZATRZYMANIE atrakcji %s\n", nr_atrakcji,atrakcje[nr_atrakcji].nazwa);
@@ -172,7 +173,7 @@ int main(int argc, char* argv[]) {
                         ACKmes mes;
                         mes.mtype = pid;
                         mes.ack = -2; // -2 = tymczasowo zatrzymano
-                        msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0);
+                        msgsnd(atrakcja_reply_id, &mes, sizeof(mes) - sizeof(long), 0);
                     }
                     czasyJazdy[i].pids.clear();
                     czasyJazdy[i].zajete = false;
@@ -183,11 +184,11 @@ int main(int argc, char* argv[]) {
 
             // Odrzuć nowych z kolejki
             ACKmes mes_queue;
-            while (msgrcv(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), 0, IPC_NOWAIT) != -1) {
+            while (msgrcv(atrakcja_id, &mes_queue, sizeof(mes_queue) - sizeof(long), 0, IPC_NOWAIT) != -1) {
                 if (mes_queue.mtype == MSG_TYPE_JOIN_ATTRACTION || mes_queue.mtype == MSG_TYPE_QUIT_ATTRACTION) {
                     mes_queue.mtype = mes_queue.ack;
                     mes_queue.ack = -2; // -2 = spróbuj później
-                    msgsnd(wejscieDoAtrakcji, &mes_queue, sizeof(mes_queue) - sizeof(long), IPC_NOWAIT);
+                    msgsnd(atrakcja_reply_id, &mes_queue, sizeof(mes_queue) - sizeof(long), IPC_NOWAIT);
                 }
             }
 
@@ -197,7 +198,7 @@ int main(int argc, char* argv[]) {
         }
             SimTime curTime = getTime();
             ACKmes mes;
-            while (msgrcv(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 99, IPC_NOWAIT) != -1) {
+            while (msgrcv(atrakcja_id, &mes, sizeof(mes) - sizeof(long), 99, IPC_NOWAIT) != -1) {
                 // Klient rezygnuje z wagonika
                 if (mes.wagonik >= 0 && mes.wagonik < iloscWagonikow) {
                     auto it = std::find(czasyJazdy[mes.wagonik].pids.begin(),
@@ -218,7 +219,7 @@ int main(int argc, char* argv[]) {
                 // Potwierdź rezygnację
                 mes.mtype = mes.ack;
                 mes.ack = 0;
-                msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0);
+                msgsnd(atrakcja_reply_id, &mes, sizeof(mes) - sizeof(long), 0);
             }
 
             // ===== SPRAWDZANIE ZAKOŃCZONYCH JAZD =====
@@ -231,7 +232,7 @@ int main(int argc, char* argv[]) {
                         ACKmes mes_out;
                         mes_out.mtype = pid;
                         mes_out.ack = 0; // Sukces
-                        msgsnd(wejscieDoAtrakcji, &mes_out, sizeof(mes_out) - sizeof(long), 0);
+                        msgsnd(atrakcja_reply_id, &mes_out, sizeof(mes_out) - sizeof(long), 0);
                     }
                     int ilosc_osob = 0;
                     for (auto& [pid, ile] : czasyJazdy[i].osob_na_pid)
@@ -258,7 +259,7 @@ int main(int argc, char* argv[]) {
 
             while (wolne_miejsca > 0) {
                 ACKmes request;
-                ssize_t result = msgrcv(wejscieDoAtrakcji, &request,
+                ssize_t result = msgrcv(atrakcja_id, &request,
                                        sizeof(request) - sizeof(long),
                                        MSG_TYPE_JOIN_ATTRACTION, IPC_NOWAIT);
                 if (result == -1) break; // Kolejka pusta
@@ -270,12 +271,12 @@ int main(int argc, char* argv[]) {
                     request.mtype = request.ack;
                     request.ack = 0; // Sukces
                     request.wagonik = freeCart;
-                    msgsnd(wejscieDoAtrakcji, &request, sizeof(request) - sizeof(long), 0);
+                    msgsnd(atrakcja_reply_id, &request, sizeof(request) - sizeof(long), 0);
                 } else {
                     // Brak miejsca
                     request.mtype = request.ack;
                     request.ack = -1; // Brak miejsca
-                    msgsnd(wejscieDoAtrakcji, &request, sizeof(request) - sizeof(long), 0);
+                    msgsnd(atrakcja_reply_id, &request, sizeof(request) - sizeof(long), 0);
                 }
             }
             // Jeśli ktoś wszedł - uruchom atrakcję
@@ -301,7 +302,7 @@ int main(int argc, char* argv[]) {
 
     // ===== ZAKOŃCZENIE PRACY =====
     if (ewakuacja) {
-        ewakuuj_wszystkich(wejscieDoAtrakcji, czasyJazdy, iloscWagonikow, nr_atrakcji);
+        ewakuuj_wszystkich(atrakcja_reply_id, czasyJazdy, iloscWagonikow, nr_atrakcji);
     }
     log_message(logger_id,"[PRACOWNIK-%d ]- KONIEC pracy na atrakcji %s (uruchomiono %d razy)\n",nr_atrakcji,
                      atrakcje[nr_atrakcji].nazwa, uruchomione_atrakcje);

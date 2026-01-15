@@ -135,7 +135,7 @@ struct SimTime {
 struct park_wspolne {
     bool park_otwarty;
     SimTime czas_w_symulacji;
-    int pracownicy_keys[17];
+    int pracownicy_keys[LICZBA_ATRAKCJI + LICZBA_ATRAKCJI];
     int park_sem;
     int clients_count;
     int logger_id;
