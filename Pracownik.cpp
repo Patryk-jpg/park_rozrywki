@@ -1,10 +1,12 @@
 #include "park_wspolne.h"
 #include <algorithm>
+#include <map>
 int logger_id = -1;
 
 struct czasy {
     SimTime czasJazdy;           // Kiedy atrakcja się kończy
     std::vector<pid_t> pids;     // Lista klientów w wagoniku
+    std::map<pid_t, int> osob_na_pid;
     bool zajete;                 // Czy wagonik w użyciu
 };
 
@@ -60,12 +62,15 @@ void ewakuuj_wszystkich(int wejscieDoAtrakcji, czasy czasyJazdy[], int iloscWago
                 ACKmes mes;
                 mes.mtype = pid;
                 mes.ack = -3; // -3 = ewakuacja
-                if (!contains(anulowalne, nr_atrakcji)){usleep(MINUTA);}
+                if (!contains(anulowalne, nr_atrakcji)) {
+                    usleep(MINUTA);
+                }
                 msgsnd(wejscieDoAtrakcji, &mes, sizeof(mes) - sizeof(long), 0);
             }
             czasyJazdy[i].pids.clear();
             czasyJazdy[i].zajete = false;
             czasyJazdy[i].czasJazdy = SimTime(0, 0);
+            czasyJazdy[i].osob_na_pid = {};
         }
     }
 
@@ -131,6 +136,7 @@ int main(int argc, char* argv[]) {
         czasyJazdy[i].czasJazdy = SimTime(0, 0);
         czasyJazdy[i].zajete = false;
         czasyJazdy[i].pids.clear();
+        czasyJazdy[i].osob_na_pid={};
     }
     struct msqid_ds buf{};
     int uruchomione_atrakcje = 0;
@@ -171,6 +177,7 @@ int main(int argc, char* argv[]) {
                     czasyJazdy[i].pids.clear();
                     czasyJazdy[i].zajete = false;
                     czasyJazdy[i].czasJazdy = SimTime(0, 0);
+                    czasyJazdy[i].osob_na_pid = {};
                 }
             }
 
@@ -184,7 +191,7 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            usleep(10000);
+            //usleep(10000);
             continue;
 
         }
@@ -196,12 +203,15 @@ int main(int argc, char* argv[]) {
                     auto it = std::find(czasyJazdy[mes.wagonik].pids.begin(),
                                        czasyJazdy[mes.wagonik].pids.end(),
                                        mes.ack);
-
+                    pid_t pid = *it;
+                    int osob = czasyJazdy[mes.wagonik].osob_na_pid[pid];
                     if (it != czasyJazdy[mes.wagonik].pids.end()) {
                         czasyJazdy[mes.wagonik].pids.erase(it);
+                        czasyJazdy[mes.wagonik].osob_na_pid.erase(pid);
+
                         SimTime curtime = getTime();
-                        log_message(logger_id,"[PRACOWNIK-%d]-  %02d:%02d,Klient %d zrezygnował z %s (wagonik %d)\n",nr_atrakcji, curtime.hour, curtime.minute,
-                                     mes.ack, atrakcje[nr_atrakcji].nazwa, mes.wagonik);
+                        log_message(logger_id,"[TEST-4] - [PRACOWNIK-%d]-  %02d:%02d,Klient %d zrezygnował z %s (wagonik %d) grupa %d osób\n",nr_atrakcji, curtime.hour, curtime.minute,
+                                     mes.ack, atrakcje[nr_atrakcji].nazwa, mes.wagonik, osob);
                         fflush(stdout);
                     }
                 }
@@ -223,11 +233,12 @@ int main(int argc, char* argv[]) {
                         mes_out.ack = 0; // Sukces
                         msgsnd(wejscieDoAtrakcji, &mes_out, sizeof(mes_out) - sizeof(long), 0);
                     }
-
-                    int ilosc_klientow = czasyJazdy[i].pids.size();
-                    log_message(logger_id,"[PRACOWNIK-%d] -  %02d:%02d - Atrakcja %s (wagonik %d) zakończona, wypuszczono %d klientów\n", nr_atrakcji,
+                    int ilosc_osob = 0;
+                    for (auto& [pid, ile] : czasyJazdy[i].osob_na_pid)
+                        ilosc_osob += ile;
+                    log_message(logger_id,"[TEST-4] - [PRACOWNIK-%d] -  %02d:%02d - Atrakcja %s (wagonik %d) zakończona, wypuszczono %d klientów\n", nr_atrakcji,
                                  curTime.hour, curTime.minute,
-                                 atrakcje[nr_atrakcji].nazwa, i, ilosc_klientow);
+                                 atrakcje[nr_atrakcji].nazwa, i, ilosc_osob);
                     // Zwolnij wagonik
                     czasyJazdy[i].pids.clear();
                     czasyJazdy[i].zajete = false;
@@ -253,6 +264,7 @@ int main(int argc, char* argv[]) {
                 if (result == -1) break; // Kolejka pusta
                 if (request.ilosc_osob <= wolne_miejsca) {
                     nowa_jazda.pids.push_back(request.ack);
+                    nowa_jazda.osob_na_pid[request.ack] = request.ilosc_osob;
                     wolne_miejsca -= request.ilosc_osob;
                     // Potwierdź wejście
                     request.mtype = request.ack;
@@ -276,7 +288,7 @@ int main(int argc, char* argv[]) {
                 int zajete = atrakcje[nr_atrakcji].po_ile_osob_wchodzi - wolne_miejsca;
                 uruchomione_atrakcje++;
 
-                log_message(logger_id,"[PRACOWNIK-%d] -  %02d:%02d - URUCHOMIENIE %s (wagonik %d): %d osób w %d grupach, koniec o %02d:%02d\n", nr_atrakcji,
+                log_message(logger_id,"[TEST-4] - [PRACOWNIK-%d] -  %02d:%02d - URUCHOMIENIE %s (wagonik %d): %d osób w %d grupach, koniec o %02d:%02d\n", nr_atrakcji,
                              curTime.hour, curTime.minute,
                              atrakcje[nr_atrakcji].nazwa, freeCart,
                              zajete, (int)nowa_jazda.pids.size(),
@@ -284,7 +296,7 @@ int main(int argc, char* argv[]) {
                 fflush(stdout);
             }
         }
-        usleep(5000);
+        //usleep(5000);
     }
 
     // ===== ZAKOŃCZENIE PRACY =====

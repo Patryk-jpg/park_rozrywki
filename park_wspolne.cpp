@@ -71,32 +71,25 @@ void initialize_semaphore(int semId, int number, int val) {
 int wait_semaphore(int semId, int number, int flags) {
     struct sembuf operacje[1];
     operacje[0].sem_num = number;
-    operacje[0].sem_flg = SEM_UNDO | flags;
+    operacje[0].sem_flg = flags;
     operacje[0].sem_op = -1;
 
-    int result = semop(semId, operacje, 1);
-
-    if (result == 0) {
-        return 0; // Sukces
-    }
-
-    if (errno == EINTR) {
-        return wait_semaphore(semId, number, flags); // Retry dla EINTR
-    }
-
-    if (errno == EIDRM || errno == EINVAL) {
+    while (true) {
+        int r = semop(semId, operacje, 1);
+        if (r == 0) return 0;
+        if (errno == EINTR) continue;
+        if (errno == EIDRM || errno == EINVAL) return -1;
+        PRINT_ERROR("semop wait");
         return -1;
     }
 
-    PRINT_ERROR("semop wait");
-    return -1;
 }
 
 void signal_semaphore(int semID, int number) {
     struct sembuf operacje[1];
     operacje[0].sem_num = number;
     operacje[0].sem_op = 1;
-    operacje[0].sem_flg = SEM_UNDO;
+    operacje[0].sem_flg = 0;
 
     if (semop(semID, operacje, 1) == -1) {
         if (errno != EIDRM && errno != EINVAL) {
@@ -188,13 +181,22 @@ void log_message( int logger_id, const char* format, ...) {
     va_start(args, format);
     vsnprintf(msg.message, sizeof(msg.message), format, args);
     va_end(args);
-
-    if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+    while (true) {
+        if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), 0) != -1) {
+            break;
+        }
         if (errno == EAGAIN) {
             fprintf(stderr, "[LOG OVERFLOW] %s\n", msg.message);
-        } else {
-            PRINT_ERROR("msgsnd log");
+            break;
         }
+        if (errno == EINTR) {
+            continue;
+        }
+        else {
+            PRINT_ERROR("msgsnd log");
+            break;
+        }
+
     }
 }
 

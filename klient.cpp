@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
     if (random_chance(1)) {
         g_klient.czyVIP=true;
     }
-    g_klient.wiek = random_int(13, 90);
+    g_klient.wiek = random_int(2, 90);
     g_klient.wzrost = g_klient.wiek<18? random_int(50, 180) : random_int(150,200);
     g_klient.pidKlienta = getpid();
     g_klient.typ_biletu = random_int(0, 3);
@@ -67,12 +67,20 @@ int main(int argc, char* argv[]) {
     if (g_klient.wiek > 18 && random_chance(30)) {
 
         g_klient.ma_dziecko = true;
-        g_klient.dzieckoInfo = std::make_unique<dziecko>();  // ← DODAJ!
+        g_klient.dzieckoInfo = std::make_unique<dziecko>();
         g_klient.dzieckoInfo->wiek = random_int(1, 13);
         g_klient.dzieckoInfo->wzrost = random_int(50, 170);
+        //log_message(logger_id, "[TEST-3] - %s Dziecko klienta %d: wiek: %d : wzrost %d \n", g_klient.pidKlienta, g_klient.dzieckoInfo->wiek, g_klient.dzieckoInfo->wzrost);
     }
 
     g_klient.ilosc_osob = g_klient.ma_dziecko ? 2  : 1;
+    //log_message(logger_id, "[TEST-3] - %s  klient %d: wiek: %d : wzrost %d \n", g_klient.pidKlienta, g_klient.wiek, g_klient.wzrost);
+
+    // if (true) {
+    //     int czyVIP = atoi(argv[1]);
+    //     g_klient.czyVIP = (bool)czyVIP;
+    //
+    // }
 
     if (random_chance(5)) {
         SimTime curtime = getTime();
@@ -105,43 +113,47 @@ void wejdz_do_parku() {
         log_message(logger_id,"Kasa zamknięta, klient %d nie wchodzi\n", g_klient.pidKlienta);
         return;
     }
-    // Przygotowanie wiadomości do kasy
-    klient_message k_msg{};
-    k_msg.ilosc_osob = g_klient.ilosc_osob;
-    k_msg.typ_biletu = g_klient.typ_biletu;
-    k_msg.ilosc_biletow = g_klient.ilosc_osob;
-    k_msg.pid_klienta = g_klient.pidKlienta;
+    // Przygotowanie wiadomośc  i do kasy
+    kasa_message k_msg{0};
+    k_msg.klient.ilosc_osob = g_klient.ilosc_osob;
+    k_msg.klient.typ_biletu = g_klient.typ_biletu;
+    k_msg.klient.ilosc_biletow = g_klient.ilosc_osob;
+    k_msg.klient.pid_klienta = g_klient.pidKlienta;
 
     // VIP ma priorytet (mtype=1) i darmowy bilet
     SimTime curTime = getTime();
     if (g_klient.czyVIP) {
         k_msg.mtype = MSG_TYPE_VIP_TICKET;
-        k_msg.typ_biletu = BILETVIP;
-        log_message(logger_id,"%02d:%02d - Klient %d (VIP) wchodzi do kolejki priorytetowej\n", curTime.hour,curTime.minute, g_klient.pidKlienta);
+        k_msg.klient.typ_biletu = BILETVIP;
+        log_message(logger_id,"[TEST-2] %02d:%02d - Klient %d (VIP) wchodzi do kolejki priorytetowej\n", curTime.hour,curTime.minute, g_klient.pidKlienta);
     } else {
         k_msg.mtype = MSG_TYPE_STANDARD_TICKET;
-        log_message(logger_id,"%02d:%02d - Klient %d wchodzi do kolejki (bilet: %s, osób: %d)\n",curTime.hour, curTime.minute,
+        log_message(logger_id,"[TEST-2] %02d:%02d - Klient %d wchodzi do kolejki (bilet: %s, osób: %d)\n",curTime.hour, curTime.minute,
                    g_klient.pidKlienta, bilety[g_klient.typ_biletu].nazwa, g_klient.ilosc_osob);
     }
+    // wait_semaphore(g_park->msg_overflow_sem, 0,0);
+    msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long),0);
 
-    msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
-    serwer_message reply;
-    msgrcv(kasaId, &reply, sizeof(reply) - sizeof(long),
+    //log_message(logger_id, "[KASA MESSAGE] - enter\n");
+
+
+    kasa_message reply{0};
+    msgrcv(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long),
                                 g_klient.pidKlienta, 0);
     curTime = getTime();
-    log_message(logger_id,"%02d:%02d - Klient %d wychodzi z kolejki do kasy\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
+    log_message(logger_id,"[TEST-2] %02d:%02d - Klient %d wychodzi z kolejki do kasy: VIP? : %d\n",curTime.hour,curTime.minute, g_klient.pidKlienta, g_klient.czyVIP);
     fflush(stdout);
 
-    if (reply.status == -1) {
+    if (reply.serwer.status == -1) {
         log_message(logger_id,"Nie udalo sie wejsc do parku, klient %d ucieka\n", g_klient.pidKlienta);
         return;
     }
 
     // OD TERAZ KLIENT W PARKU
 
-    g_klient.czasWejscia = reply.start_biletu;
-    g_klient.cena = reply.cena;
-    g_klient.czasWyjscia = reply.end_biletu;
+    g_klient.czasWejscia = reply.serwer.start_biletu;
+    g_klient.cena = reply.serwer.cena;
+    g_klient.czasWyjscia = reply.serwer.end_biletu;
     g_klient.wParku = true;
 
 
@@ -307,9 +319,9 @@ void baw_sie() {
 
        if (max_proby <= 0) {
            //log_message(logger_id,"Klient %d: brak dostępnych atrakcji, czeka\n", g_klient.pidKlienta);
-           usleep(100000); // Czekaj 100ms
+           //usleep(100000); // Czekaj 100ms
            curTime = getTime();
-           continue;
+           break;
        }
 
         int status = idz_do_atrakcji(nr_atrakcji, g_klient.pidKlienta);
@@ -344,24 +356,27 @@ void baw_sie() {
 void wyjdz_z_parku() {
     int kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
 
-    payment_message k_msg;
-    k_msg.czasWRestauracji = g_klient.czasWRestauracji;
-    k_msg.pid = g_klient.pidKlienta;
-    k_msg.wiekDziecka = g_klient.ma_dziecko ? g_klient.dzieckoInfo->wiek : -1;
-    k_msg.czasWyjscia = getTime();
-    k_msg.mtype = MSG_TYPE_EXIT_PAYMENT;
+    kasa_message payment_msg{0};
+    payment_msg.payment.czasWRestauracji = g_klient.czasWRestauracji;
+    payment_msg.payment.pid = g_klient.pidKlienta;
+    payment_msg.payment.wiekDziecka = g_klient.ma_dziecko ? g_klient.dzieckoInfo->wiek : -1;
+    payment_msg.payment.czasWyjscia = getTime();
+    payment_msg.mtype = MSG_TYPE_EXIT_PAYMENT;
     SimTime curTime = getTime();
     log_message(logger_id,"%02d:%02d - Klient %d idzie do kasy zapłacić przy wyjściu\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
 
-    msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), 0);
+    // wait_semaphore(g_park->msg_overflow_sem,0,0);
 
-    msgrcv(kasaId, &k_msg, sizeof(k_msg) - sizeof(long),
+    msgsnd(kasaId, &payment_msg, sizeof(payment_msg) - sizeof(long), 0);
+    //log_message(logger_id, "[KASA MESSAGE] - exit\n");
+
+    msgrcv(g_park->kasa_reply_id, &payment_msg, sizeof(payment_msg) - sizeof(long),
                                 g_klient.pidKlienta, 0);
 
 
     curTime = getTime();
     log_message(logger_id,"%02d:%02d - Klient %d WYCHODZI z parku, zapłacił %.2f zł\n",
-               curTime.hour, curTime.minute, g_klient.pidKlienta, k_msg.suma);
+               curTime.hour, curTime.minute, g_klient.pidKlienta, payment_msg.payment.suma);
 
 }
 
@@ -394,48 +409,70 @@ void  zaplac_za_restauracje_z_zewnatrz(int czas_pobytu) {
 
 bool spelniaWymagania(int nr_atrakcji) {
     const Atrakcja& atrakcja = atrakcje[nr_atrakcji];
-
+    bool spelnia = true;
     if (!SEZON_LETNI && atrakcja.sezonowa_letnia) {
+        log_message(logger_id,"[TEST-3] - %s - wymagania nie spełnione (to nie sezon letni)\n");
         return false;
     }
     if (atrakcja.max_wiek != 999 && g_klient.wiek > atrakcja.max_wiek) {
+        log_message(logger_id,"[TEST-3] - %s - klient: %d wymagania nie spełnione max wiek: %d, wiek klienta %d\n",atrakcja.nazwa,g_klient.pidKlienta,atrakcja.max_wiek, g_klient.wiek);
+        g_klient.odwiedzone.push_back(nr_atrakcji);
         return false;
     }
     if (g_klient.wiek < atrakcja.min_wiek) {
+        log_message(logger_id,"[TEST-3] - %s - klient: %d wymagania nie spełnione minimalny wiek: %d, wiek klienta %d\n",atrakcja.nazwa,g_klient.pidKlienta,atrakcja.min_wiek, g_klient.wiek);
+        g_klient.odwiedzone.push_back(nr_atrakcji);
         return false;
     }
     if (atrakcja.max_wzrost != 999 && g_klient.wzrost > atrakcja.max_wzrost) {
+        log_message(logger_id,"[TEST-3] - %s - klient: %d wymagania nie spełnione maks wzrost %d, wzrost klienta %d\n",atrakcja.nazwa,g_klient.pidKlienta,atrakcja.max_wzrost, g_klient.wzrost);
+        g_klient.odwiedzone.push_back(nr_atrakcji);
         return false;
     }
     if (g_klient.wzrost < atrakcja.min_wzrost) {
+        log_message(logger_id,"[TEST-3] - %s - klient: %d wymagania nie spełnione minimalny wzrost %d, wzrost klienta %d\n",atrakcja.nazwa,g_klient.pidKlienta,atrakcja.min_wzrost, g_klient.wzrost);
+        g_klient.odwiedzone.push_back(nr_atrakcji);
         return false;
     }
     if (g_klient.wiek < 18 && !g_klient.ma_dziecko) {
         // Ten klient jest dzieckiem bez opiekuna
         if (atrakcja.wiek_wymaga_opiekuna != -1 && g_klient.wiek < atrakcja.wiek_wymaga_opiekuna) {
-            return false; // Za młody bez opiekuna
+            log_message(logger_id,"[TEST-3] - %s - klient: %d wymagania nie spełnione, atrakcja wymaga opiekuna do lat %d klient (wiek %d)\n",atrakcja.nazwa,g_klient.pidKlienta,atrakcja.wiek_wymaga_opiekuna, g_klient.wiek);
+            g_klient.odwiedzone.push_back(nr_atrakcji);
+            return false;// Za młody bez opiekuna
         }
     }
     if (g_klient.wiek < 18 && !g_klient.ma_dziecko) {
         // Ten klient jest dzieckiem bez opiekuna
         if (atrakcja.wzrost_wymaga_opiekuna != -1 && g_klient.wzrost < atrakcja.wzrost_wymaga_opiekuna) {
+            log_message(logger_id,"[TEST-3] - %s - klient: %d wymagania nie spełnione, atrakcja wymaga opiekuna do wzrostu %d (wzrost %d)\n",atrakcja.nazwa,g_klient.pidKlienta,atrakcja.wzrost_wymaga_opiekuna, g_klient.wzrost);
+            g_klient.odwiedzone.push_back(nr_atrakcji);
             return false; // Za niski bez opiekuna
         }
     }
     if (g_klient.ma_dziecko) {
         if (atrakcja.max_wiek != 999 && g_klient.dzieckoInfo->wiek > atrakcja.max_wiek) {
+            log_message(logger_id,"[TEST-3] - %s - klient: %d wymagania nie spełnione dla dziecka max wiek: %d, wiek klienta %d\n",atrakcja.nazwa,g_klient.pidKlienta,atrakcja.max_wiek, g_klient.dzieckoInfo->wiek);
+            g_klient.odwiedzone.push_back(nr_atrakcji);
             return false;
         }
         if (g_klient.dzieckoInfo->wiek < atrakcja.min_wiek) {
+            log_message(logger_id,"[TEST-3] - %s - klient: %d wymagania nie spełnione dla dziecka minimalny wiek: %d, wiek klienta %d\n",atrakcja.nazwa,g_klient.pidKlienta,atrakcja.min_wiek, g_klient.dzieckoInfo->wiek);
+            g_klient.odwiedzone.push_back(nr_atrakcji);
             return false;
         }
         if (atrakcja.max_wzrost != 999 && g_klient.dzieckoInfo->wzrost > atrakcja.max_wzrost) {
+            log_message(logger_id,"[TEST-3] - %s - klient: %d wymagania nie dla dziecka spełnione maks wzrost %d, wzrost klienta %d\n",atrakcja.nazwa,g_klient.pidKlienta,atrakcja.max_wzrost, g_klient.dzieckoInfo->wzrost);
+            g_klient.odwiedzone.push_back(nr_atrakcji);
             return false;
         }
         if (g_klient.dzieckoInfo->wzrost < atrakcja.min_wzrost) {
+            log_message(logger_id,"[TEST-3] - %s - klient: %d wymagania nie spełnione dla dziecka minimalny wzrost %d, wzrost klienta %d\n",atrakcja.nazwa,g_klient.pidKlienta,atrakcja.min_wzrost, g_klient.dzieckoInfo->wzrost);
+            g_klient.odwiedzone.push_back(nr_atrakcji);
             return false;
         }
     }
+
     return true;
 
 }
