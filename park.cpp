@@ -234,7 +234,7 @@ void poczekaj_na_klientow() {
         while ((pid = waitpid(klienci_pids[i], &status, 0)) == -1) {
             // przerwanie sygnałem, spróbuj ponownie
             if (errno == EINTR) {continue;}
-            continue;
+            break;
         }
         if (pid == -1) {
             if (errno == ECHILD) {
