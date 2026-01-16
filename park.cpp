@@ -277,11 +277,11 @@ int   main() {
     error_check(queuefile, "open");
     close(queuefile);
 
-    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED, 0655);
-    kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED, 0644);
-    logger_id = create_message_queue(SEED_FILENAME_QUEUE, 'L', 0611);
-    kasa_reply_id =  create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 3, 0643);
-    kasa_rest_reply_id   = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 4, 0643);
+    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED, 0600);
+    kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED, 0600);
+    logger_id = create_message_queue(SEED_FILENAME_QUEUE, 'L', 0600);
+    kasa_reply_id =  create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 3, 0600);
+    kasa_rest_reply_id   = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 4, 0600);
 
     g_park = attach_to_shared_block();
     memset(g_park, 0, sizeof(park_wspolne));
@@ -399,7 +399,7 @@ int   main() {
         //     testing = false;
         // }
         //
-        if (random_chance(100) && otwarty && !signal3) {
+        if (random_chance(30) && otwarty && !signal3) {
             pid_t pid = fork();
             if (pid == 0) {
                 //Proces klienta

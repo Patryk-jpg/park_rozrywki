@@ -26,7 +26,7 @@
 // STAŁE KONFIGURACYJNE
 #define MAX_KLIENTOW_W_PARKU 100
 #define CZAS_OTWARCIA 8
-#define CZAS_ZAMKNIECIA 20
+#define CZAS_ZAMKNIECIA 12
 #define PROCENT_VIP 1
 #define LICZBA_ATRAKCJI 17
 #define MINUTA 10000
@@ -56,6 +56,12 @@
 #define MSG_TYPE_EXIT_PAYMENT 1       // Płatność przy wyjściu
 #define MSG_TYPE_END_QUEUE 105 //zakoncz kolejke
 #define SEZON_LETNI true
+
+
+static_assert(MAX_KLIENTOW_W_PARKU > 0, "maks klientów nie moze byc ujemna");
+static_assert(LICZBA_ATRAKCJI >= 17, "program obsługuje maksymalnie 17 atrakcji");
+static_assert(CZAS_OTWARCIA < CZAS_ZAMKNIECIA, "czas otwarcia wiekszy od zamkniecia");
+static_assert(PROCENT_VIP  < 100, "procent nie moze byc wiekszy od 100%");
 
 // STRUCTY
 struct Atrakcja {
@@ -163,7 +169,7 @@ const Atrakcja atrakcje[17] = {
     // A8: Kolejka mała
     {7, "Kolejka mala", 24,24, 15, 0, 999, 100, 999, -1, 120, false, false},
     // A9: Kolejka górska
-    {8, "Kolejka gorska", 4,20, 35, 4, 999, 120, 999, 12, -1, false, false},
+    {8, "Kolejka gorska", 1,MAX_KLIENTOW_W_PARKU, (CZAS_ZAMKNIECIA-CZAS_OTWARCIA)*60, 4, 999, 120, 999, 12, -1, false, false},
     // A10: Kolejka smocza
     {9, "Kolejka smocza", 20,20, 30, 4, 999, 120, 999, 13, -1, false, false},
     // A11: Mega Roller Coaster
