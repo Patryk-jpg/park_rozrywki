@@ -65,7 +65,14 @@ void ewakuuj_wszystkich(int atrakcja_id_reply, int atrakcja_id, czasy czasyJazdy
                 if (!contains(anulowalne, nr_atrakcji)) {
                     usleep(MINUTA);
                 }
-                msgsnd(atrakcja_id_reply, &mes, sizeof(mes) - sizeof(long), 0);
+                while (msgsnd(atrakcja_id_reply, &mes, sizeof(mes) - sizeof(long), 0) == -1) {
+                    if (errno == EINTR) {
+                        continue;
+                    }
+                    perror("msgsnd");
+                    break;
+                }
+
             }
             czasyJazdy[i].pids.clear();
             czasyJazdy[i].zajete = false;
@@ -176,7 +183,13 @@ int main(int argc, char* argv[]) {
                         ACKmes mes;
                         mes.mtype = pid;
                         mes.ack = -2; // -2 = tymczasowo zatrzymano
-                        msgsnd(atrakcja_reply_id, &mes, sizeof(mes) - sizeof(long), 0);
+                        while (msgsnd(atrakcja_reply_id, &mes, sizeof(mes) - sizeof(long), 0) == -1) {
+                            if (errno == EINTR) {
+                                continue;
+                            }
+                            perror("msgsnd");
+                            break;
+                        }
                     }
                     czasyJazdy[i].pids.clear();
                     czasyJazdy[i].zajete = false;
@@ -222,7 +235,13 @@ int main(int argc, char* argv[]) {
                 // Potwierdź rezygnację
                 mes.mtype = mes.ack;
                 mes.ack = 0;
-                msgsnd(atrakcja_reply_id, &mes, sizeof(mes) - sizeof(long), 0);
+                while (msgsnd(atrakcja_reply_id, &mes, sizeof(mes) - sizeof(long), 0) == -1) {
+                    if (errno == EINTR) {
+                        continue;
+                    }
+                    perror("msgsnd");
+                    break;
+                }
             }
 
             // ===== SPRAWDZANIE ZAKOŃCZONYCH JAZD =====
@@ -238,7 +257,13 @@ int main(int argc, char* argv[]) {
                         if (!g_park->park_otwarty) {
                             mes_out.ack  = -3;
                         }
-                        msgsnd(atrakcja_reply_id, &mes_out, sizeof(mes_out) - sizeof(long), 0);
+                        while (msgsnd(atrakcja_reply_id, &mes_out, sizeof(mes_out) - sizeof(long), 0) == -1) {
+                            if (errno == EINTR) {
+                                continue;
+                            }
+                            perror("msgsnd");
+                            break;
+                        }
                     }
                     int ilosc_osob = 0;
                     for (auto& [pid, ile] : czasyJazdy[i].osob_na_pid)
@@ -278,14 +303,26 @@ int main(int argc, char* argv[]) {
                     request.ack = 0; // Sukces
                     if (!g_park->park_otwarty || zatrzymano) {request.ack = -3;}
                     request.wagonik = freeCart;
-                    msgsnd(atrakcja_reply_id, &request, sizeof(request) - sizeof(long), 0);
+                    while (msgsnd(atrakcja_reply_id, &request, sizeof(request) - sizeof(long), 0) == -1) {
+                        if (errno == EINTR) {
+                            continue;
+                        }
+                        perror("msgsnd");
+                        break;
+                    }
                     if (!g_park->park_otwarty || zatrzymano)  break;
 
                 } else {
                     // Brak miejsca
                     request.mtype = request.ack;
                     request.ack = -1; // Brak miejsca
-                    msgsnd(atrakcja_reply_id, &request, sizeof(request) - sizeof(long), 0);
+                    while (msgsnd(atrakcja_reply_id, &request, sizeof(request) - sizeof(long), 0) == -1) {
+                        if (errno == EINTR) {
+                            continue;
+                        }
+                        perror("msgsnd");
+                        break;
+                    }
                     break;
                 }
             }

@@ -169,7 +169,7 @@ const Atrakcja atrakcje[17] = {
     // A8: Kolejka mała
     {7, "Kolejka mala", 24,24, 15, 0, 999, 100, 999, -1, 120, false, false},
     // A9: Kolejka górska
-    {8, "Kolejka gorska", 1,MAX_KLIENTOW_W_PARKU, (CZAS_ZAMKNIECIA-CZAS_OTWARCIA)*60, 4, 999, 120, 999, 12, -1, false, false},
+    {8, "Kolejka gorska", 1,MAX_KLIENTOW_W_PARKU, 30, 4, 999, 120, 999, 12, -1, false, false},
     // A10: Kolejka smocza
     {9, "Kolejka smocza", 20,20, 30, 4, 999, 120, 999, 13, -1, false, false},
     // A11: Mega Roller Coaster

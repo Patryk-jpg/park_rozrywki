@@ -33,7 +33,13 @@ void* watek_logger(void* arg) {
     char header[] = "========================================\n"
                       "   RAPORT PARKU ROZRYWKI              \n"
                     "========================================\n\n";
-    write(fd, header, strlen(header));
+    while (write(fd, header, strlen(header)) == -1) {
+        if (errno == EINTR) {
+            continue;
+        }
+        perror("write");
+        break;
+    }
     LogMessage msg;
     while (true) {
 
@@ -183,6 +189,13 @@ void poczekaj_na_pracownikow() {
         if (pracownicy_pids[i] > 0) {
             kill(pracownicy_pids[i],SIGUSR1);
             pid_t pid = waitpid(pracownicy_pids[i], &status, 0);
+            if (pid == -1) {
+                if (errno == ECHILD) {
+                    // Proces już zakończony i odebrany — ignorujemy
+                } else {
+                    PRINT_ERROR("waitpid");
+                }
+            }
             if (pid > 0) {
 
                 printf("[PARK] Pracownik %zu (PID: %d) zakonczył pracę\n", i, pid);
@@ -218,11 +231,11 @@ void poczekaj_na_klientow() {
         // }
         //pid_t pid = waitpid(klienci_pids[i], &status, 0); //TODO obsluga bledow do waitpida
         pid_t pid;
-        while ((pid = waitpid(klienci_pids[i], &status, 0)) == -1 && errno == EINTR) {
+        while ((pid = waitpid(klienci_pids[i], &status, 0)) == -1) {
             // przerwanie sygnałem, spróbuj ponownie
+            if (errno == EINTR) {continue;}
             continue;
         }
-
         if (pid == -1) {
             if (errno == ECHILD) {
                 // Proces już zakończony i odebrany — ignorujemy

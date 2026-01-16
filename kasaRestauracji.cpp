@@ -68,7 +68,13 @@ int main(int argc, char* argv[]) {
         fflush(stdout);
 
         msg.mtype = msg.pid_klienta;
-        msgsnd(g_park->kasa_rest_reply_id, &msg, sizeof(msg) - sizeof(long), 0);
+        while (msgsnd(g_park->kasa_rest_reply_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            perror("msgsnd");
+            break;
+        }
 
     }
 
