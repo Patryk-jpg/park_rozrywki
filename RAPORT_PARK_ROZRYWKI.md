@@ -152,27 +152,29 @@ https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a
 https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/park_wspolne.cpp#L139-L151
 
 * msgsnd() - wysyłanie wiadomości:
-    * (odpowiedź na chęć wejścia do parku) https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/Kasa.cpp#L133 
-    * (odpowiedź na chęć wyjścia z parku) https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/Kasa.cpp#L194
-    * (awaryjne czyszczenie wszystkich aktywnych jazd na atrakcji) https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/Pracownik.cpp#L68
+    * (odpowiedź na chęć wejścia do parku) https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/Kasa.cpp#L200-L206
+    * (odpowiedź na chęć wyjścia z parku) https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/Kasa.cpp#L133-L138
+    * (awaryjne czyszczenie wszystkich aktywnych jazd na atrakcji)https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/Pracownik.cpp#L68-L74
     ... i czyszczenie wiadomości z kolejce tych oczekujących na jazde https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/Pracownik.cpp#L83
-    * podobnie podczas zatrzymania atrakcji 
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/Pracownik.cpp#L176
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/Pracownik.cpp#L191
+    * podobnie podczas zatrzymania atrakcji
+      https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/Pracownik.cpp#L186-L192    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/Pracownik.cpp#L191
     * odpowiedź na rezygnacje z atrakcji
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/Pracownik.cpp#L222
-    * odpowiedź na prośbe o wejście na atrakcje 
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/Pracownik.cpp#L274-L280
+      https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/Pracownik.cpp#L238-L244
+    * zakończanie jazdy
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/Pracownik.cpp#L260-L265
+
+    * odpowiedź na prośbe o wejście na atrakcje
+      https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/Pracownik.cpp#L306-L324
     * prośba o wejście do parku
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L135-L145
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L135-L145
     * prośba o wejście na atrakcje 
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L224-L228
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L225-L231
     * rezygnacja z atrakcji, prośba o wcześniejsze wyjście
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L291-L296
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L292-L297
     * poinformowanie kasy o chęci wyjścia z parku
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L409-L414
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L410-L415
     * poinformowanie kasyRestauracji o chęci zapłaty (tylko gdy wejście z zewnątrz)
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L441-L444
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L442-L446
     * wysyłanie wiadomości które zakończą kasy
     https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/park.cpp#L82-L97
     * pomocnicze funkcje do wysyłania logów i kończenia loggera
@@ -181,19 +183,19 @@ https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a
 
 * msgrcv() - odbieranie wiadomości:
 
-    * odbieranie informacji czy udało się wejść do parku https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L153-L158
+    * odbieranie informacji czy udało się wejść do parku https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L152-L158
     * odbieranie czy udało się wejść na atrakcje 
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L232-L236
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L233-L236
     * przygotowanie do rezygnacji (zanim klient zrezygnuje to czeka X minut, za ten czas musi obserwować czy pracownik sam z siebie awaryjnie nie zakończył jazdy)
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L273-L274
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L274-L279
     * potwierdzenie przyjęcia rezygnacji 
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L298-L302
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L299-L304
     * otrzymanie informacji o normalnym zakończeniu jazdy 
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L308-L312
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L309-L314
     * potwierdzenie przyjęcia zapłaty, wyjście z parku
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L417-L418
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L418-L420
     * potwierdzenie zapłaty w kasie restauracji (aka wzięcie paragonu)
-    https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/klient.cpp#L448-L453
+    https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L449-L454
     ---
     * odbiór wszystkich możliwych typow wiadomości do kasy po czym na bazie mtype zdecydowanie której części uniona użyć
     https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/Kasa.cpp#L248-L273
