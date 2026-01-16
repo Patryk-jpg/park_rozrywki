@@ -78,7 +78,7 @@ Każdy proces w pewnym stopniu obsługuje sygnały
 
 * park obsługuje SIGINT jako sygnał3 z wymagań (wcześniejsze zakończenie programu aka ewakuacja) dodatkowo obsługuje SIGCHLD żeby czyścić na bieżąco procesy zombie
 
-## Linki do kluczowych fragomentów
+## Linki do kluczowych fragmentów
 
 1.  Tworzenie i obsługa plików
 * Tworzenie pliku logu: https://github.com/Patryk-jpg/park_rozrywki/blob/3e5322f8adc1e6dac5b4b1ccdaffa95e20f66a24/park.cpp#L22-L30https://github.com/Patryk-jpg/park_rozrywki/blob/8980a3aaee42c2c435381d9d321b608557e54b02/park.cpp#L25-L31
@@ -217,18 +217,7 @@ https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a
 
 #### Totalna ilość struktur komunikacji to 1 semafor, 38 kolejek komunikatów, 1 pamięć dzielona
 
---- 
-### Wnioski
-
-Projekt udało się w pełni zrealizować zgodnie z wymaganiami tematu 9. Największe wyzwanie stanowiła koordynacja zamykania wielu procesów i zapewnienie braku deadlocków. System jest stabilny i prawidłowo obsługuje wszystkie scenariusze (normalne działanie, ewakuacja, zatrzymanie atrakcji).
-
-
-### Dodatkowe usprawnienia
-
-- **Optymalizacja czasu:** Zamiana `usleep()` w pętli głównej na rzeczywisty pomiar czasu z `time(NULL)` - 1 sekunda rzeczywista = 1 minuta symulacji
-- **System wagonów:** Zamiast prostego licznika - rzeczywiste śledzenie kto w którym wagonie/łodzi/kapsule
-- **Obsługa grup:** Klienci z dziećmi traktowani jako grupa (walidacja dla obu osób)
-
+---
 
 Poprzez ewakuację mam na myśli wcześniejsze zakończenie programu przez ctrl+c (wysłanie SIGINT)
 
