@@ -81,18 +81,18 @@ Każdy proces w pewnym stopniu obsługuje sygnały
 ## Linki do kluczowych fragomentów
 
 1.  Tworzenie i obsługa plików
-* Tworzenie pliku logu: https://github.com/Patryk-jpg/park_rozrywki/blob/3e5322f8adc1e6dac5b4b1ccdaffa95e20f66a24/park.cpp#L22-L30
+* Tworzenie pliku logu: https://github.com/Patryk-jpg/park_rozrywki/blob/3e5322f8adc1e6dac5b4b1ccdaffa95e20f66a24/park.cpp#L22-L30https://github.com/Patryk-jpg/park_rozrywki/blob/8980a3aaee42c2c435381d9d321b608557e54b02/park.cpp#L25-L31
 * Zapis do pliku (write):
-https://github.com/Patryk-jpg/park_rozrywki/blob/3e5322f8adc1e6dac5b4b1ccdaffa95e20f66a24/park.cpp#L31-L62
-
+  https://github.com/Patryk-jpg/park_rozrywki/blob/8980a3aaee42c2c435381d9d321b608557e54b02/park.cpp#L36-L41
 
 2. Tworzenie procesów
 * fork() - tworzenie klientów:
-https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/park.cpp#L402-L414
+  https://github.com/Patryk-jpg/park_rozrywki/blob/8980a3aaee42c2c435381d9d321b608557e54b02/park.cpp#L459-L475
 * execvp() - uruchamianie pracowników:
-https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/park.cpp#L141-L162
+  https://github.com/Patryk-jpg/park_rozrywki/blob/8980a3aaee42c2c435381d9d321b608557e54b02/park.cpp#L149-L162
 * execvp() - uruchamianie kasy:
-https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/park.cpp#L112-L141
+https://github.com/Patryk-jpg/park_rozrywki/blob/8980a3aaee42c2c435381d9d321b608557e54b02/park.cpp#L119-L131
+https://github.com/Patryk-jpg/park_rozrywki/blob/8980a3aaee42c2c435381d9d321b608557e54b02/park.cpp#L132-L143
 * wait()/waitpid() - zbieranie procesów zombie:
 https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/park.cpp#L172-L176
 https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a69c23824e/park.cpp#L221-L232

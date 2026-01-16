@@ -130,7 +130,13 @@ void handle_enter(klient_message request) {
             signal_semaphore(g_park->park_sem, 0);
 
             // Wyślij odpowiedź
-            msgsnd(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long), 0);
+            while (msgsnd(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long), 0) == -1) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                perror("mgsrcv");
+                break;
+            }
             // signal(g_park->msg_overflow_sem, 0);
 
             //log_message(logger_id, "[KASA MESSAGE] - confirm enter\n");
@@ -191,7 +197,13 @@ void handle_exit(const payment_message & payment_request) {
     // daj paragon
     log_message(logger_id, "[KASA] - Klient %d , osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", payment_request.pid, bilet.ilosc_osob,kwota_bilet,koszt_rest,
         doplata, total, payment_request.czasWRestauracji, czas_nadmiarowy );
-    msgsnd(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long), 0);
+    while (msgsnd(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long), 0) == -1) {
+        if (errno == EINTR) {
+            continue;
+        }
+        perror("msgrcv");
+        break;
+    }
     // signal(g_park->msg_overflow_sem, 0);
 
 
