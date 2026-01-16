@@ -312,3 +312,157 @@ https://docs.google.com/document/d/1qc-JoQw2PQhwKuk2D18NBXy3lQHGcChE1c0F31hjelc/
 
 
 
+### kluczowe Pseudokody
+
+1. park.cpp
+
+```
+    utworz_struktury_komunikacji()
+    zapisz_klucze_do_pamieci_dzielonej()
+
+    park.otwarty = TRUE
+    park.czas = CZAS_OTWARCIA
+    park.clients_count = 0 
+
+    uruchom_inne_procesy(pracownicy,kasy,logger)
+    
+    WHILE TRUE:
+        zaktualizuj_czas_symulacji()
+        IF  SIGINT:
+            park.otwarty = FALSE
+            PRZERWIJ
+        IF  czas >= CZAS_ZAMKNIECIA:
+            park.otwarty = FALSE
+        
+        IF park.otwarty I losuj(procent%):
+            fork_nowy_klient()
+        
+        IF NOT park.otwarty I park.clients_count == 0:
+            BREAK
+    
+    poczekaj_na_zakonczenie(wszyscy_klienci)
+    wyslij_SIGUSR1_do(wszyscy_pracownicy)
+    poczekaj_na_zakonczenie(wszyscy_pracownicy)
+    usun_kolejki_atrakcji()
+    
+    wyslij_MSG_TYPE_END_QUEUE_do(kasa_glowna, kasa_restauracji)
+    poczekaj_na_zakonczenie(kasa_glowna, kasa_restauracji)
+    zakonczenie_loggera()
+    poczekaj_na_watek(logger)
+    wyczysc struktury komunikacji()
+```
+
+
+2. kasa.cpp
+
+```
+ obsluga_kasy():
+    mapa_klientow = {}  // pid -> dane_biletu
+    
+    WHILE TRUE:
+        wiadomosc = msgrcv(kolejka_kasy, typ=-105)
+        
+        IF wiadomosc.typ == MSG_TYPE_END_QUEUE:
+            BREAK
+        SWITCH wiadomosc.typ:
+            CASE MSG_TYPE_VIP_TICKET:
+            CASE MSG_TYPE_STANDARD_TICKET:
+                obsluz_wejscie(wiadomosc)
+                
+            CASE MSG_TYPE_EXIT_PAYMENT:
+                obsluz_wyjscie(wiadomosc)
+```
+
+3. pracownik.cpp
+
+```
+struct czasy {
+    SimTime czasJazdy;           // Kiedy atrakcja się kończy
+    std::vector<pid_t> pids;     // Lista klientów w wagoniku
+    std::map<pid_t, int> osob_na_pid;
+    bool zajete;                 // Czy wagonik w użyciu
+};
+
+    WHILE TRUE:
+        IF !park_otwarty && zatrzymano:
+            BREAK
+        IF zatrzymano:
+            wyczysc_jazdy_i_odmow_atrakcji_oczekujacym()
+        
+        //obsluż rezygnacje 
+        WHILE(msgrcv(... mtype = rezygnacja) != -1):
+            usun_pid_klienta
+            wypusc_wysylajac_msgsnd()
+        
+        FOR jazda in aktywne_jazdy
+            IF jazda się konczy:
+                wyczysc_wagonik
+                wypusc_wysylajac_msgsnd()
+
+
+
+
+```
+
+
+4. klient.cpp
+
+```
+
+stworz_swoje_dane()
+
+IF(losuj(5%)):
+    wejdz_do_restauracji_przed_wejsciem_do_parku()
+
+wejdz_do_parku()
+
+IF(losuj(5%)):
+    wejdz_do_restauracji_po_wejsciem_do_parku()
+
+
+return
+
+wejdz_do_parku():
+    -> msgsnd do kasy o wejscie do parku
+    msgrcv reply
+    if reply.status != -1:
+        klient_w_parku = true
+    baw_sie()
+
+baw_sie():
+    while(bilet.czas_zamkniecia < godzina_teraz):
+    
+    int nr_atrakcji = losuj()
+    while (niespełnia_wymagan_by_wejsc(klient, nr_atrakcji)&& są nieodwiedzone atrakcje):
+        nr_atrakcji = losuj()
+    
+    idz_do_atrakcji()
+
+idz_do_atrakcji():
+    msgsnd o wejscie do pracownika
+    msgrcv reply
+    ...
+
+    zrezygnuje = losuj(10%)
+    if(zrezygnuje):
+        int po_jakim_czasie = wylosuj(5, czas_trwania_atrakcji)
+        
+        while(czas_rezygnacji czas):
+            sprawdz czy pracownik nie przerwal awaryjnie
+            msgrcv IPCNOWAIT
+        
+        msgsnd - prosba o rezygnacje
+        msgrcv -potwierdzenie
+    else:
+        msgrcv - potwierdzenie zakonczenia
+
+    if(nr_atrakcji == 16): //Restauracjia
+        if klient not wParku:
+            zaplac_w_kasie_restauracji
+            (msgsnd -> kasy restauracji)
+```
+
+
+
+
+
