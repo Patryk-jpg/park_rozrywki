@@ -26,7 +26,7 @@
 // STAŁE KONFIGURACYJNE
 #define MAX_KLIENTOW_W_PARKU 100
 #define CZAS_OTWARCIA 8
-#define CZAS_ZAMKNIECIA 20
+#define CZAS_ZAMKNIECIA 12
 #define PROCENT_VIP 1
 #define LICZBA_ATRAKCJI 17
 #define MINUTA 10000
@@ -46,7 +46,7 @@
 #define SEM_SEED 'S'
 #define QUEUE_REST_SEED 'R'
 #define IPC_ERROR (-1)
-
+#define TIME_SCALE 1
 
 // ===== TYPY KOMUNIKATÓW =====
 #define MSG_TYPE_VIP_TICKET 10           // VIP - priorytet
@@ -54,8 +54,14 @@
 #define MSG_TYPE_JOIN_ATTRACTION 100    // Wejście do atrakcji
 #define MSG_TYPE_QUIT_ATTRACTION 99     // Rezygnacja z atrakcji
 #define MSG_TYPE_EXIT_PAYMENT 1       // Płatność przy wyjściu
-
+#define MSG_TYPE_END_QUEUE 105 //zakoncz kolejke
 #define SEZON_LETNI true
+
+
+static_assert(MAX_KLIENTOW_W_PARKU > 0, "maks klientów nie moze byc ujemna");
+static_assert(LICZBA_ATRAKCJI >= 17, "program obsługuje maksymalnie 17 atrakcji");
+static_assert(CZAS_OTWARCIA < CZAS_ZAMKNIECIA, "czas otwarcia wiekszy od zamkniecia");
+static_assert(PROCENT_VIP  < 100, "procent nie moze byc wiekszy od 100%");
 
 // STRUCTY
 struct Atrakcja {
@@ -79,6 +85,7 @@ struct Atrakcja {
 void print_error_impl(const char* file, int line, const char* func, const std::string& msg);
 
 struct SimTime {
+    time_t start_time = 0;
     int hour = 0;
     int minute = 0;
 
@@ -93,7 +100,17 @@ struct SimTime {
             if (hour >= 24) hour = 0;
         }
     }
-
+    void update() {
+        time_t now = time(nullptr) - start_time;
+        int now_sim = now * TIME_SCALE;
+        int total_minutes = now_sim * TIME_SCALE;
+        hour = CZAS_OTWARCIA + total_minutes / 60;
+        minute = total_minutes % 60;
+        if (hour  >= CZAS_ZAMKNIECIA) {
+            hour  = CZAS_ZAMKNIECIA;
+            minute = 0;
+        }
+    }
     void print() const {
         printf("%02d:%02d\n", hour, minute);
     }
@@ -124,11 +141,12 @@ struct SimTime {
 struct park_wspolne {
     bool park_otwarty;
     SimTime czas_w_symulacji;
-    int pracownicy_keys[17];
+    int pracownicy_keys[LICZBA_ATRAKCJI + LICZBA_ATRAKCJI];
     int park_sem;
     int clients_count;
     int logger_id;
     int kasa_reply_id;
+    int kasa_rest_reply_id;
 };
 
 // Parametry atrakcji
@@ -151,7 +169,7 @@ const Atrakcja atrakcje[17] = {
     // A8: Kolejka mała
     {7, "Kolejka mala", 24,24, 15, 0, 999, 100, 999, -1, 120, false, false},
     // A9: Kolejka górska
-    {8, "Kolejka gorska", 4,20, 35, 4, 999, 120, 999, 12, -1, false, false},
+    {8, "Kolejka gorska", 1,MAX_KLIENTOW_W_PARKU, 30, 4, 999, 120, 999, 12, -1, false, false},
     // A10: Kolejka smocza
     {9, "Kolejka smocza", 20,20, 30, 4, 999, 120, 999, 13, -1, false, false},
     // A11: Mega Roller Coaster

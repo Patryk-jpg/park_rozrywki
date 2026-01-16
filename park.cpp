@@ -12,6 +12,8 @@ pid_t kasa_rest_pid = -1;
 int kasa_rest_id =  -1;
 int kasa_id = -1;
 int kasa_reply_id = -1;
+int kasa_rest_reply_id = -1;
+
 pthread_t g_logger_tid;
 int logger_id =  -1;
 static volatile sig_atomic_t signal3 = 0;
@@ -31,7 +33,13 @@ void* watek_logger(void* arg) {
     char header[] = "========================================\n"
                       "   RAPORT PARKU ROZRYWKI              \n"
                     "========================================\n\n";
-    write(fd, header, strlen(header));
+    while (write(fd, header, strlen(header)) == -1) {
+        if (errno == EINTR) {
+            continue;
+        }
+        perror("write");
+        break;
+    }
     LogMessage msg;
     while (true) {
 
@@ -76,7 +84,7 @@ void poczekaj_na_kasy() {
         log_message(logger_id,"[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
         printf("[PARK] Czekam na kasę główną (PID: %d)...\n", kasa_pid);
 
-        msg.mtype = 105;
+        msg.mtype = MSG_TYPE_END_QUEUE;
         msgsnd(kasa_id, &msg, sizeof(msg) - sizeof(long), 0);
 
         pid_t result = waitpid(kasa_pid, &status, 0);
@@ -90,7 +98,9 @@ void poczekaj_na_kasy() {
     }
     if (kasa_rest_pid > 0) {
         int status;
-        kill(kasa_rest_pid, SIGUSR1); // SYGNAL do zatrzymania kasy (zeby nie konczyla sie zbyt szybko sama, przez malo osob w restauracji
+        restauracja_message msg{0};
+        msg.mtype = MSG_TYPE_END_QUEUE;
+        msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
 
         log_message(logger_id,"[PARK] Czekam na kasę restauracji (PID: %d)...\n", kasa_rest_pid);
         printf("[PARK] Czekam na kasę restauracji (PID: %d)...\n", kasa_rest_pid);
@@ -163,6 +173,14 @@ void sig3handler(int sig) {
     signal3 = 1;
 
 }
+
+
+void sigchld_handler(int i) {
+    while (waitpid(-1, nullptr, WNOHANG) > 0) {
+        // sprzątamy zombie
+    }
+};
+
 void poczekaj_na_pracownikow() {
 
     log_message(logger_id,"[PARK] Czekam na zakonczenie pracowników...\n");
@@ -171,6 +189,13 @@ void poczekaj_na_pracownikow() {
         if (pracownicy_pids[i] > 0) {
             kill(pracownicy_pids[i],SIGUSR1);
             pid_t pid = waitpid(pracownicy_pids[i], &status, 0);
+            if (pid == -1) {
+                if (errno == ECHILD) {
+                    // Proces już zakończony i odebrany — ignorujemy
+                } else {
+                    PRINT_ERROR("waitpid");
+                }
+            }
             if (pid > 0) {
 
                 printf("[PARK] Pracownik %zu (PID: %d) zakonczył pracę\n", i, pid);
@@ -179,7 +204,7 @@ void poczekaj_na_pracownikow() {
     }
 
     log_message(logger_id,"[PARK] pracownicy zakończeni, usuwam kolejki pracowników...\n");
-    for (int i = 0; i < LICZBA_ATRAKCJI; i++) {
+    for (int i = 0; i < LICZBA_ATRAKCJI + LICZBA_ATRAKCJI; i++) {
         int kolejka_id = g_park->pracownicy_keys[i];
         if (kolejka_id > 0) {
             if (msgctl(kolejka_id, IPC_RMID, NULL) == -1) {
@@ -206,11 +231,11 @@ void poczekaj_na_klientow() {
         // }
         //pid_t pid = waitpid(klienci_pids[i], &status, 0); //TODO obsluga bledow do waitpida
         pid_t pid;
-        while ((pid = waitpid(klienci_pids[i], &status, 0)) == -1 && errno == EINTR) {
+        while ((pid = waitpid(klienci_pids[i], &status, 0)) == -1) {
             // przerwanie sygnałem, spróbuj ponownie
+            if (errno == EINTR) {continue;}
             continue;
         }
-
         if (pid == -1) {
             if (errno == ECHILD) {
                 // Proces już zakończony i odebrany — ignorujemy
@@ -224,13 +249,66 @@ void poczekaj_na_klientow() {
 };
 
 
+void zakoncz() {
+    wait_semaphore(g_park->park_sem,0,0);
+    g_park->park_otwarty = false;
+    signal_semaphore(g_park->park_sem,0);
 
+    log_message(logger_id,"\n[PARK] Zamykam park...\n");
+    printf("\n[PARK] Zamykam park...\n");
+    poczekaj_na_klientow();
+    poczekaj_na_pracownikow();
+    poczekaj_na_kasy();
 
+    log_message(logger_id,"[PARK] Zbieranie pozostałych procesów...\n");
+    printf("[PARK] Zbieranie pozostałych procesów...\n");
+
+    // signal(SIGTERM, SIG_IGN);
+    // kill(0, SIGTERM); // Sends signal to all processes in the current PGID
+    int status;
+    while (wait(&status) > 0) {
+    }
+    log_message(logger_id,"Usuwam kolejki komunikatów...\n");
+    if (msgctl(kasa_rest_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID restauracja");
+    }
+    if (msgctl(kasa_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID kasa");
+    }
+    if (msgctl(kasa_reply_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID kasa");
+    }
+    if (msgctl(kasa_rest_reply_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID kasa");
+    }
+
+    log_message(logger_id,"PARK ZAMKNIETY");
+    printf("park zamkniety");
+    log_message(logger_id,"Sprzątanie zasobów...\n");
+    end_logger(logger_id);
+    pthread_join(g_logger_tid, NULL);
+    if (msgctl(logger_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID kasa");
+    }
+    free_semaphore(g_park->park_sem, 0);
+    // free_semaphore(g_park->msg_overflow_sem, 0);
+    detach_from_shared_block(g_park);
+    destroy_shared_block((char*)SEED_FILENAME_PARK);
+}
 
 int   main() {
 
     init_random();
 
+    struct sigaction sa_chld{};
+    sa_chld.sa_handler = sigchld_handler;
+    sigemptyset(&sa_chld.sa_mask);
+    sa_chld.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+
+    if (sigaction(SIGCHLD, &sa_chld, nullptr) == -1) {
+        PRINT_ERROR("sigaction SIGCHLD");
+        exit(1);
+    }
     // Obsługa sygnału ewakuacji
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
@@ -256,10 +334,11 @@ int   main() {
     error_check(queuefile, "open");
     close(queuefile);
 
-    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED, 0655);
-    kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED, 0644);
-    logger_id = create_message_queue(SEED_FILENAME_QUEUE, 'L', 0611);
-    kasa_reply_id =  create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 3, 0643);
+    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED, 0600);
+    kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED, 0600);
+    logger_id = create_message_queue(SEED_FILENAME_QUEUE, 'L', 0600);
+    kasa_reply_id =  create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 3, 0600);
+    kasa_rest_reply_id   = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 4, 0600);
 
     g_park = attach_to_shared_block();
     memset(g_park, 0, sizeof(park_wspolne));
@@ -267,6 +346,8 @@ int   main() {
     g_park->park_otwarty = true;
     g_park->czas_w_symulacji.hour = CZAS_OTWARCIA;
     g_park->czas_w_symulacji.minute = 0;
+    g_park->czas_w_symulacji.start_time = time(NULL);
+
     g_park->logger_id = logger_id;
 
     if (pthread_create(&g_logger_tid, nullptr, watek_logger, nullptr) != 0) {
@@ -280,13 +361,14 @@ int   main() {
     initialize_semaphore(park_sem, 0, 1);
     // initialize_semaphore(msg_overflow_sem, 0, 400);
 
-    for (int i = 0; i < LICZBA_ATRAKCJI; i++) {
+    for (int i = 0; i < LICZBA_ATRAKCJI + LICZBA_ATRAKCJI; i++) {
         g_park->pracownicy_keys[i] = create_message_queue(SEED_FILENAME_QUEUE, i, 0600);
     }
 
     g_park->clients_count =  0;;
     g_park->park_sem = park_sem;
     g_park->kasa_reply_id = kasa_reply_id;
+    g_park->kasa_rest_reply_id = kasa_rest_reply_id;
     uruchom_pracownikow();
     uruchom_kase();
     uruchom_kase_restauracji();
@@ -318,7 +400,9 @@ int   main() {
         }
 
         wait_semaphore(g_park->park_sem,0,0);
-        g_park->czas_w_symulacji.increment_minute();
+        g_park->czas_w_symulacji.update();
+        printf("time now %02d:%02d\n", curTime.hour, curTime.minute);
+
 
         if (g_park->czas_w_symulacji.minute == 0) {
             int ludzi = g_park->clients_count;
@@ -372,8 +456,14 @@ int   main() {
         //     testing = false;
         // }
         //
-        if (random_chance(100) && otwarty && !signal3) {
+        if (random_chance(30) && otwarty && !signal3) {
             pid_t pid = fork();
+            if (pid == -1) {
+                zakoncz();
+                // TODO czekamy na wszystkie procesy potomne, czyscimy struktury systemowe, wykonujemy exit
+                perror("execvp - klient");
+                _exit(1);
+            }
             if (pid == 0) {
                 //Proces klienta
                 char* args[] = {(char*)"klient", NULL};
@@ -386,49 +476,9 @@ int   main() {
             }
         }
 
-        usleep(MINUTA);
+        //usleep(MINUTA);
     }
 
-    wait_semaphore(g_park->park_sem,0,0);
-    g_park->park_otwarty = false;
-    signal_semaphore(g_park->park_sem,0);
-
-    log_message(logger_id,"\n[PARK] Zamykam park...\n");
-    printf("\n[PARK] Zamykam park...\n");
-    poczekaj_na_klientow();
-    poczekaj_na_pracownikow();
-    poczekaj_na_kasy();
-
-    log_message(logger_id,"[PARK] Zbieranie pozostałych procesów...\n");
-    printf("[PARK] Zbieranie pozostałych procesów...\n");
-
-    // signal(SIGTERM, SIG_IGN);
-    // kill(0, SIGTERM); // Sends signal to all processes in the current PGID
-    int status;
-    while (wait(&status) > 0) {
-    }
-    log_message(logger_id,"Usuwam kolejki komunikatów...\n");
-    if (msgctl(kasa_rest_id, IPC_RMID, NULL) == -1) {
-        PRINT_ERROR("msgctl IPC_RMID restauracja");
-    }
-    if (msgctl(kasa_id, IPC_RMID, NULL) == -1) {
-        PRINT_ERROR("msgctl IPC_RMID kasa");
-    }
-    if (msgctl(kasa_reply_id, IPC_RMID, NULL) == -1) {
-        PRINT_ERROR("msgctl IPC_RMID kasa");
-    }
-
-    log_message(logger_id,"PARK ZAMKNIETY");
-    printf("park zamkniety");
-    log_message(logger_id,"Sprzątanie zasobów...\n");
-    end_logger(logger_id);
-    pthread_join(g_logger_tid, NULL);
-    if (msgctl(logger_id, IPC_RMID, NULL) == -1) {
-        PRINT_ERROR("msgctl IPC_RMID kasa");
-    }
-    free_semaphore(g_park->park_sem, 0);
-    // free_semaphore(g_park->msg_overflow_sem, 0);
-    detach_from_shared_block(g_park);
-    destroy_shared_block((char*)SEED_FILENAME_PARK);
+    zakoncz();
     return 0;
 }

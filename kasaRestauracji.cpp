@@ -41,27 +41,18 @@ int main(int argc, char* argv[]) {
         }
         msgctl(kasa_rest_id, IPC_STAT, &buf);
 
-        wait_semaphore(g_park->park_sem, 0, 0);
-        bool otwarty = g_park->park_otwarty;
-        signal_semaphore(g_park->park_sem, 0);
-
-
-        // Sprawdź czy są klienci w kolejce
-        if (buf.msg_qnum == 0) {
-            //usleeep(10000); // 10ms
-            continue;
-        }
-
         restauracja_message msg;
         ssize_t result = msgrcv(kasa_rest_id, &msg,
                                 sizeof(msg) - sizeof(long),
-                                1, IPC_NOWAIT);
+                                -MSG_TYPE_END_QUEUE, 0);
 
         if (result == -1) {
             //usleeep(10000);
             continue;
         }
-
+        if (msg.mtype == MSG_TYPE_END_QUEUE) {
+            break; //zakoncz
+        }
         msg.kwota = oblicz_koszt_restauracji(msg.czas_pobytu_min);
 
         suma_przychodow += msg.kwota;
@@ -77,26 +68,15 @@ int main(int argc, char* argv[]) {
         fflush(stdout);
 
         msg.mtype = msg.pid_klienta;
-        msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
-
-        // Zamknij jeśli park zamknięty i kolejka pusta
-        if (!otwarty && buf.msg_qnum == 0 && zakonczenie) {
-            log_message(logger_id,"Park zamknięty, kolejka pusta - zamykam kasę restauracji\n");
+        while (msgsnd(g_park->kasa_rest_reply_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            perror("msgsnd");
             break;
         }
-    }
 
-    // printf("\n[KASA RESTAURACJI] Zamykam kasę\n");
-    //
-    // printf("========================================\n");
-    // printf("Podsumowanie dnia:\n");
-    // printf("Liczba transakcji: %d\n", licznik_transakcji);
-    // printf("Suma przychodów:   %.2f zł\n", suma_przychodow);
-    // if (licznik_transakcji > 0) {
-    //     printf("Średnia wartość:   %.2f zł\n", suma_przychodow / licznik_transakcji);
-    // }
-    // printf("========================================\n");
-    // fflush(stdout);
+    }
 
     log_message(logger_id,"[RESTAURACJA] Zamykam kase -Liczba transakcji: %d,Suma zarobków: %.2f zł\n",licznik_transakcji,suma_przychodow);
 

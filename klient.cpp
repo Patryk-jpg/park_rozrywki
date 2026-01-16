@@ -132,14 +132,30 @@ void wejdz_do_parku() {
                    g_klient.pidKlienta, bilety[g_klient.typ_biletu].nazwa, g_klient.ilosc_osob);
     }
     // wait_semaphore(g_park->msg_overflow_sem, 0,0);
-    msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long),0);
+    while (msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), IPC_NOWAIT) == -1) {
+        //log_message(logger_id,"%02d:%02d - Klient %d ERROR msgsnd\n", curTime.hour,curTime.minute, g_klient.pidKlienta);
+        if (errno == EINTR || errno == EAGAIN) {
+            if (!g_park->park_otwarty) return;
+            continue;
+        } else if (errno == EIDRM || errno == EINVAL) {
+            return;
+        }
+    // JEŚLI KOLEJKA JEST JUŻ PEŁNA I WYSTĄPIL EAGAIN to w zasadzie nie ma sensu żeby klient czekał
+        return;
+    }
+
 
     //log_message(logger_id, "[KASA MESSAGE] - enter\n");
 
 
     kasa_message reply{0};
-    msgrcv(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long),
-                                g_klient.pidKlienta, 0);
+    while (msgrcv(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long),
+                                g_klient.pidKlienta, 0) == -1) {
+        log_message(logger_id, "Klient %d nie udalo sie wejsc- sygnal wyrzucil z kolejki do parku\n");
+        if (errno == EINTR) {continue;}
+        if (errno == EIDRM || errno == EINVAL) {break;}
+        return;
+    }
     curTime = getTime();
     log_message(logger_id,"[TEST-2] %02d:%02d - Klient %d wychodzi z kolejki do kasy: VIP? : %d\n",curTime.hour,curTime.minute, g_klient.pidKlienta, g_klient.czyVIP);
     fflush(stdout);
@@ -178,16 +194,24 @@ void wejdz_do_parku() {
 int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
     SimTime czas_zakonczenia;
     SimTime czas_rozpoczecia = getTime();
+
     if (!park_otwarty()) {
         log_message(logger_id,"Klient %d: park zamknięty, nie może iść na atrakcję\n", identifier);
         return -3;
     }
     int atrakcja_id = g_park->pracownicy_keys[nr_atrakcji];
+    int atrakcja_reply_id = g_park->pracownicy_keys[nr_atrakcji + LICZBA_ATRAKCJI];
     if (atrakcja_id <= 0) {
         log_message(logger_id,"Klient %d: atrakcja %s zamknięta (kolejka nie istnieje)\n",
                    identifier, atrakcje[nr_atrakcji].nazwa);
         return -1;
     }
+    // struct msqid_ds buf;
+    // msgctl(atrakcja_id, IPC_STAT, &buf);
+    // if ((float)buf.msg_cbytes / buf.msg_qbytes > 0.5) {
+    //     return -2;
+    // }
+
 
     // Żądanie wejścia
     ACKmes mes;
@@ -195,17 +219,22 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
     mes.ilosc_osob = g_klient.ilosc_osob;
     mes.ack = identifier;
     mes.wagonik = 0;
+    log_message(logger_id,"Klient %d: atrakcja %s probuje wyslac aby wejsc \n",
+           identifier, atrakcje[nr_atrakcji].nazwa);
 
     if (msgsnd(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), IPC_NOWAIT) == -1) {
-        if (errno == EIDRM || errno == EINVAL) {
-            log_message(logger_id,"Klient %d: atrakcja %s zamknięta (kolejka usunięta)\n",
+        if (errno == EIDRM || errno == EINVAL || errno == EINTR || errno == EAGAIN) {
+            log_message(logger_id,"Klient %d: atrakcja %s zamknięta (kolejka usunięta) lub pełna kolejka\n",
                        identifier, atrakcje[nr_atrakcji].nazwa);
-            return -1;
+            return -3;
         }
     }
 
-    msgrcv(atrakcja_id, &mes, sizeof(mes) - sizeof(long),
-                                g_klient.pidKlienta, 0);
+    while (msgrcv(atrakcja_reply_id, &mes, sizeof(mes) - sizeof(long),
+                                g_klient.pidKlienta, 0) == -1) {
+        if (errno == EINTR) continue;
+        return -3;
+    }
 
 
     if (mes.ack == -1) {
@@ -217,7 +246,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
         return -2;
     }
     if (mes.ack == -3) {
-        log_message(logger_id,"Klient %d: ewakuacja z %s\n", identifier, atrakcje[nr_atrakcji].nazwa);
+        log_message(logger_id,"Klient %d: wyjscie z %s i z parku\n", identifier, atrakcje[nr_atrakcji].nazwa);
         return -3;
     }
 
@@ -242,7 +271,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
         while (curTime <= timeout && !ewakuacja) {
             curTime = getTime();
             // Sprawdź czy pracownik nie przerwał atrakcji
-            ssize_t mess = msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
+            ssize_t mess = msgrcv(atrakcja_reply_id, &mes, sizeof(ACKmes) - sizeof(long),
                             identifier, IPC_NOWAIT);
             if (mess != -1) {
                 log_message(logger_id,"Klient %d: %s zakończona przez pracownika\n",
@@ -260,17 +289,28 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
         mes.mtype = MSG_TYPE_QUIT_ATTRACTION;
         mes.ack = identifier;
         mes.wagonik = moj_wagonik;
-        msgsnd(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), 0);
+        while (msgsnd(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), 0) == -1) {
+            if (errno == EINTR) {
+                    continue;
+            }
+            if (errno == EAGAIN || errno == EIDRM) {return -3;}
+        }
 
-        msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
-                                    g_klient.pidKlienta, 0);
+        while (msgrcv(atrakcja_reply_id, &mes, sizeof(ACKmes) - sizeof(long),
+                                    g_klient.pidKlienta, 0) == -1) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EIDRM) {return -3;}
+        }
 
 
     }else {
         // Normalne zakończenie atrakcji
 
-         msgrcv(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long),
-                                    g_klient.pidKlienta, 0);
+         while (msgrcv(atrakcja_reply_id, &mes, sizeof(ACKmes) - sizeof(long),
+                                    g_klient.pidKlienta, 0) == -1) {
+             if (errno== EINTR) continue;
+             if (errno == EAGAIN || errno == EIDRM) {return -3;}
+         }
 
     }
     if (nr_atrakcji == 16) {
@@ -294,7 +334,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
 
 void baw_sie() {
     if (!park_otwarty()) {
-        log_message(logger_id,"Baw-sie klient wychodzi z parku");
+        log_message(logger_id,"Baw-sie klient %d wychodzi z parku\n", g_klient.pidKlienta);
         wyjdz_z_parku();
         return;
     }
@@ -367,7 +407,12 @@ void wyjdz_z_parku() {
 
     // wait_semaphore(g_park->msg_overflow_sem,0,0);
 
-    msgsnd(kasaId, &payment_msg, sizeof(payment_msg) - sizeof(long), 0);
+    while (msgsnd(kasaId, &payment_msg, sizeof(payment_msg) - sizeof(long), 0) == -1) {
+        if (errno == EAGAIN) {continue;}
+        if(errno == EINTR) {continue;}
+        if (errno == EIDRM) {break;}
+
+    }
     //log_message(logger_id, "[KASA MESSAGE] - exit\n");
 
     msgrcv(g_park->kasa_reply_id, &payment_msg, sizeof(payment_msg) - sizeof(long),
@@ -394,12 +439,19 @@ void  zaplac_za_restauracje_z_zewnatrz(int czas_pobytu) {
     msg.pid_klienta = g_klient.pidKlienta;
     msg.czas_pobytu_min = czas_pobytu * g_klient.ilosc_osob;
 
-    msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0);
+    while (msgsnd(kasa_rest_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+        if (errno == EAGAIN) {continue;}
+        if(errno == EINTR) {continue;}
+        if (errno == EIDRM) {break;}
+    }
 
 
-    msgrcv(kasa_rest_id, &msg, sizeof(msg) - sizeof(long),
-                                g_klient.pidKlienta, 0);
-
+    while (msgrcv(g_park->kasa_rest_reply_id, &msg, sizeof(msg) - sizeof(long),
+                                g_klient.pidKlienta, 0) == -1) {
+        if (errno == EAGAIN) {continue;}
+        if(errno == EINTR) {continue;}
+        if (errno == EIDRM) {break;}
+    }
 
     curTime = getTime();
     log_message(logger_id,"%02d:%02d - Klient %d wychodzi z restauracji, zapłacił %.2f zł\n",

@@ -91,23 +91,18 @@ void signal_semaphore(int semID, int number) {
     operacje[0].sem_op = 1;
     operacje[0].sem_flg = 0;
 
-    if (semop(semID, operacje, 1) == -1) {
+    while (semop(semID, operacje, 1) == -1) {
+        if  (errno == EINTR) {
+            continue;
+        }
         if (errno != EIDRM && errno != EINVAL) {
             PRINT_ERROR("semop signal");
+            return;
         }
     }
 }
 
-int read_semaphore(int semID, int number) {
-    int val = semctl(semID, number, GETVAL, NULL);
-    if (val == -1) {
-        // Semafor usunięty lub błąd
-        if (errno == EIDRM || errno == EINVAL) {
-            return 0; // Zwróć 0 jeśli usunięty
-        }
-    }
-    return val;
-}
+
 
 SimTime SimTime::operator+(const SimTime& other) const {
     SimTime result;
