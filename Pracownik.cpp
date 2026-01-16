@@ -52,8 +52,8 @@ int znajdzWolnyWagonik(czasy czasyJazdy[], int iloscWagonikow) {
     }
     return -1;
 }
-void ewakuuj_wszystkich(int atrakcja_id, czasy czasyJazdy[], int iloscWagonikow, int nr_atrakcji) {
-    log_message(logger_id,"[PRACOWNIK]- EWAKUACJA atrakcji %s - wyrzucam wszystkich klientów\n", atrakcje[nr_atrakcji].nazwa);
+void ewakuuj_wszystkich(int atrakcja_id_reply, int atrakcja_id, czasy czasyJazdy[], int iloscWagonikow, int nr_atrakcji) {
+    log_message(logger_id,"[PRACOWNIK]- czyszczenie atrakcji %s - wyrzucam wszystkich klientów\n", atrakcje[nr_atrakcji].nazwa);
 
     // Wyrzuć wszystkich z wagoników
     for (int i = 0; i < iloscWagonikow; i++) {
@@ -65,7 +65,7 @@ void ewakuuj_wszystkich(int atrakcja_id, czasy czasyJazdy[], int iloscWagonikow,
                 if (!contains(anulowalne, nr_atrakcji)) {
                     usleep(MINUTA);
                 }
-                msgsnd(atrakcja_id, &mes, sizeof(mes) - sizeof(long), 0);
+                msgsnd(atrakcja_id_reply, &mes, sizeof(mes) - sizeof(long), 0);
             }
             czasyJazdy[i].pids.clear();
             czasyJazdy[i].zajete = false;
@@ -80,7 +80,7 @@ void ewakuuj_wszystkich(int atrakcja_id, czasy czasyJazdy[], int iloscWagonikow,
         if (mes_queue.mtype == MSG_TYPE_JOIN_ATTRACTION || mes_queue.mtype == MSG_TYPE_QUIT_ATTRACTION) {
             mes_queue.mtype = mes_queue.ack;
             mes_queue.ack = -3; // -3 = ewakuacja
-            msgsnd(atrakcja_id, &mes_queue, sizeof(mes_queue) - sizeof(long), IPC_NOWAIT);
+            msgsnd(atrakcja_id_reply, &mes_queue, sizeof(mes_queue) - sizeof(long), IPC_NOWAIT);
         }
     }
 }
@@ -150,6 +150,9 @@ int main(int argc, char* argv[]) {
         int licznik_klientow = g_park->clients_count;
         bool otwarty = g_park->park_otwarty;
         signal_semaphore(g_park->park_sem, 0);
+        // if (!otwarty) {
+        //     ewakuuj_wszystkich(atrakcja_reply_id, atrakcja_id, czasyJazdy, iloscWagonikow, nr_atrakcji);
+        // }
 
         if (!otwarty && zatrzymano) {
             log_message(logger_id,"[PRACOWNIK-%d]- Atrakcja %s: park zamknięty, brak klientów, kończę pracę\n",nr_atrakcji,
@@ -160,7 +163,7 @@ int main(int argc, char* argv[]) {
         if (zatrzymano) {
             if (ewakuacja) {
                 log_message(logger_id,"[PRACOWNIK-%d]- EWAKUACJA na atrakcji %s!\n",nr_atrakcji, atrakcje[nr_atrakcji].nazwa);
-                ewakuuj_wszystkich(atrakcja_reply_id, czasyJazdy, iloscWagonikow, nr_atrakcji);
+                ewakuuj_wszystkich(atrakcja_reply_id, atrakcja_id, czasyJazdy, iloscWagonikow, nr_atrakcji);
                 break;
             }
             log_message(logger_id,"[PRACOWNIK-%d]- ZATRZYMANIE atrakcji %s\n", nr_atrakcji,atrakcje[nr_atrakcji].nazwa);
@@ -232,6 +235,9 @@ int main(int argc, char* argv[]) {
                         ACKmes mes_out;
                         mes_out.mtype = pid;
                         mes_out.ack = 0; // Sukces
+                        if (!g_park->park_otwarty) {
+                            mes_out.ack  = -3;
+                        }
                         msgsnd(atrakcja_reply_id, &mes_out, sizeof(mes_out) - sizeof(long), 0);
                     }
                     int ilosc_osob = 0;
@@ -270,17 +276,21 @@ int main(int argc, char* argv[]) {
                     // Potwierdź wejście
                     request.mtype = request.ack;
                     request.ack = 0; // Sukces
+                    if (!g_park->park_otwarty || zatrzymano) {request.ack = -3;}
                     request.wagonik = freeCart;
                     msgsnd(atrakcja_reply_id, &request, sizeof(request) - sizeof(long), 0);
+                    if (!g_park->park_otwarty || zatrzymano)  break;
+
                 } else {
                     // Brak miejsca
                     request.mtype = request.ack;
                     request.ack = -1; // Brak miejsca
                     msgsnd(atrakcja_reply_id, &request, sizeof(request) - sizeof(long), 0);
+                    break;
                 }
             }
             // Jeśli ktoś wszedł - uruchom atrakcję
-            if (!nowa_jazda.pids.empty()) {
+            if (!nowa_jazda.pids.empty() && g_park->park_otwarty) {
                 curTime = getTime();
                 nowa_jazda.czasJazdy = curTime + SimTime(0, atrakcje[nr_atrakcji].czas_trwania_min);
                 nowa_jazda.zajete = true;
@@ -302,7 +312,7 @@ int main(int argc, char* argv[]) {
 
     // ===== ZAKOŃCZENIE PRACY =====
     if (ewakuacja) {
-        ewakuuj_wszystkich(atrakcja_reply_id, czasyJazdy, iloscWagonikow, nr_atrakcji);
+        ewakuuj_wszystkich(atrakcja_reply_id, atrakcja_id, czasyJazdy, iloscWagonikow, nr_atrakcji);
     }
     log_message(logger_id,"[PRACOWNIK-%d ]- KONIEC pracy na atrakcji %s (uruchomiono %d razy)\n",nr_atrakcji,
                      atrakcje[nr_atrakcji].nazwa, uruchomione_atrakcje);

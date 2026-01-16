@@ -236,8 +236,52 @@ void poczekaj_na_klientow() {
 };
 
 
+void zakoncz() {
+    wait_semaphore(g_park->park_sem,0,0);
+    g_park->park_otwarty = false;
+    signal_semaphore(g_park->park_sem,0);
 
+    log_message(logger_id,"\n[PARK] Zamykam park...\n");
+    printf("\n[PARK] Zamykam park...\n");
+    poczekaj_na_klientow();
+    poczekaj_na_pracownikow();
+    poczekaj_na_kasy();
 
+    log_message(logger_id,"[PARK] Zbieranie pozostałych procesów...\n");
+    printf("[PARK] Zbieranie pozostałych procesów...\n");
+
+    // signal(SIGTERM, SIG_IGN);
+    // kill(0, SIGTERM); // Sends signal to all processes in the current PGID
+    int status;
+    while (wait(&status) > 0) {
+    }
+    log_message(logger_id,"Usuwam kolejki komunikatów...\n");
+    if (msgctl(kasa_rest_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID restauracja");
+    }
+    if (msgctl(kasa_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID kasa");
+    }
+    if (msgctl(kasa_reply_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID kasa");
+    }
+    if (msgctl(kasa_rest_reply_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID kasa");
+    }
+
+    log_message(logger_id,"PARK ZAMKNIETY");
+    printf("park zamkniety");
+    log_message(logger_id,"Sprzątanie zasobów...\n");
+    end_logger(logger_id);
+    pthread_join(g_logger_tid, NULL);
+    if (msgctl(logger_id, IPC_RMID, NULL) == -1) {
+        PRINT_ERROR("msgctl IPC_RMID kasa");
+    }
+    free_semaphore(g_park->park_sem, 0);
+    // free_semaphore(g_park->msg_overflow_sem, 0);
+    detach_from_shared_block(g_park);
+    destroy_shared_block((char*)SEED_FILENAME_PARK);
+}
 
 int   main() {
 
@@ -401,6 +445,12 @@ int   main() {
         //
         if (random_chance(30) && otwarty && !signal3) {
             pid_t pid = fork();
+            if (pid == -1) {
+                zakoncz();
+                // TODO czekamy na wszystkie procesy potomne, czyscimy struktury systemowe, wykonujemy exit
+                perror("execvp - klient");
+                _exit(1);
+            }
             if (pid == 0) {
                 //Proces klienta
                 char* args[] = {(char*)"klient", NULL};
@@ -416,49 +466,6 @@ int   main() {
         //usleep(MINUTA);
     }
 
-    wait_semaphore(g_park->park_sem,0,0);
-    g_park->park_otwarty = false;
-    signal_semaphore(g_park->park_sem,0);
-
-    log_message(logger_id,"\n[PARK] Zamykam park...\n");
-    printf("\n[PARK] Zamykam park...\n");
-    poczekaj_na_klientow();
-    poczekaj_na_pracownikow();
-    poczekaj_na_kasy();
-
-    log_message(logger_id,"[PARK] Zbieranie pozostałych procesów...\n");
-    printf("[PARK] Zbieranie pozostałych procesów...\n");
-
-    // signal(SIGTERM, SIG_IGN);
-    // kill(0, SIGTERM); // Sends signal to all processes in the current PGID
-    int status;
-    while (wait(&status) > 0) {
-    }
-    log_message(logger_id,"Usuwam kolejki komunikatów...\n");
-    if (msgctl(kasa_rest_id, IPC_RMID, NULL) == -1) {
-        PRINT_ERROR("msgctl IPC_RMID restauracja");
-    }
-    if (msgctl(kasa_id, IPC_RMID, NULL) == -1) {
-        PRINT_ERROR("msgctl IPC_RMID kasa");
-    }
-    if (msgctl(kasa_reply_id, IPC_RMID, NULL) == -1) {
-        PRINT_ERROR("msgctl IPC_RMID kasa");
-    }
-    if (msgctl(kasa_rest_reply_id, IPC_RMID, NULL) == -1) {
-        PRINT_ERROR("msgctl IPC_RMID kasa");
-    }
-
-    log_message(logger_id,"PARK ZAMKNIETY");
-    printf("park zamkniety");
-    log_message(logger_id,"Sprzątanie zasobów...\n");
-    end_logger(logger_id);
-    pthread_join(g_logger_tid, NULL);
-    if (msgctl(logger_id, IPC_RMID, NULL) == -1) {
-        PRINT_ERROR("msgctl IPC_RMID kasa");
-    }
-    free_semaphore(g_park->park_sem, 0);
-    // free_semaphore(g_park->msg_overflow_sem, 0);
-    detach_from_shared_block(g_park);
-    destroy_shared_block((char*)SEED_FILENAME_PARK);
+    zakoncz();
     return 0;
 }

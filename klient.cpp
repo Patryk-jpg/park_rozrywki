@@ -132,16 +132,15 @@ void wejdz_do_parku() {
                    g_klient.pidKlienta, bilety[g_klient.typ_biletu].nazwa, g_klient.ilosc_osob);
     }
     // wait_semaphore(g_park->msg_overflow_sem, 0,0);
-    if (msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long),0) == -1) {
+    while (msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), IPC_NOWAIT) == -1) {
         //log_message(logger_id,"%02d:%02d - Klient %d ERROR msgsnd\n", curTime.hour,curTime.minute, g_klient.pidKlienta);
-        if (errno == EINTR) {
-            //printf("sygnal ");
-
+        if (errno == EINTR || errno == EAGAIN) {
+            if (!g_park->park_otwarty) return;
+            continue;
         } else if (errno == EIDRM || errno == EINVAL) {
-            // printf("kasa zamknięta");
-        } else {
-            perror("msgsnd");
+            return;
         }
+    // JEŚLI KOLEJKA JEST JUŻ PEŁNA I WYSTĄPIL EAGAIN to w zasadzie nie ma sensu żeby klient czekał
         return;
     }
 
@@ -220,12 +219,14 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
     mes.ilosc_osob = g_klient.ilosc_osob;
     mes.ack = identifier;
     mes.wagonik = 0;
+    log_message(logger_id,"Klient %d: atrakcja %s probuje wyslac aby wejsc \n",
+           identifier, atrakcje[nr_atrakcji].nazwa);
 
     if (msgsnd(atrakcja_id, &mes, sizeof(ACKmes) - sizeof(long), IPC_NOWAIT) == -1) {
-        if (errno == EIDRM || errno == EINVAL) {
-            log_message(logger_id,"Klient %d: atrakcja %s zamknięta (kolejka usunięta)\n",
+        if (errno == EIDRM || errno == EINVAL || errno == EINTR || errno == EAGAIN) {
+            log_message(logger_id,"Klient %d: atrakcja %s zamknięta (kolejka usunięta) lub pełna kolejka\n",
                        identifier, atrakcje[nr_atrakcji].nazwa);
-            return -1;
+            return -3;
         }
     }
 
@@ -245,7 +246,7 @@ int idz_do_atrakcji(int nr_atrakcji, pid_t identifier) {
         return -2;
     }
     if (mes.ack == -3) {
-        log_message(logger_id,"Klient %d: ewakuacja z %s\n", identifier, atrakcje[nr_atrakcji].nazwa);
+        log_message(logger_id,"Klient %d: wyjscie z %s i z parku\n", identifier, atrakcje[nr_atrakcji].nazwa);
         return -3;
     }
 
