@@ -31,7 +31,7 @@ int update_licznik_klientow(klient_message& request) {
     }
     if (g_park->clients_count + request.ilosc_osob > MAX_KLIENTOW_W_PARKU ) {
         signal_semaphore(g_park->park_sem, 0);
-        log_message(logger_id,"[TEST-1] - odrzucono klienta bo ilosć klientów: %d\n", g_park->clients_count );
+        log_message(3, logger_id,"[TEST-1] - odrzucono klienta bo ilosć klientów: %d\n", g_park->clients_count );
         return -1;
     }
     g_park->clients_count += request.ilosc_osob;
@@ -94,7 +94,7 @@ void wydrukuj_paragon(pid_t pid, const serwer_message& bilet, const payment_mess
     printf("SUMA:               %7.2f zł\n", suma);
     printf("========================================\n\n");
     fflush(stdout);
-    // log_message(logger_id, "[KASA] - Klient %d , osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", pid, bilet.ilosc_osob,kwota_bilet,koszt_restauracji,
+    // log_message(3, logger_id, "[KASA] - Klient %d , osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", pid, bilet.ilosc_osob,kwota_bilet,koszt_restauracji,
     //     doplata, suma, payment.czasWRestauracji, czas_nadmiarowy );
 
 }
@@ -139,19 +139,19 @@ void handle_enter(klient_message request) {
             }
             // signal(g_park->msg_overflow_sem, 0);
 
-            //log_message(logger_id, "[KASA MESSAGE] - confirm enter\n");
+            //log_message(3, logger_id, "[KASA MESSAGE] - confirm enter\n");
 
             if (reply.serwer.status == 0) {
                 clients_pids[request.pid_klienta] = reply.serwer;
                 wait_semaphore(g_park->park_sem, 0, 0);
                 SimTime curtime = g_park->czas_w_symulacji;
                 signal_semaphore(g_park->park_sem, 0);
-                log_message(logger_id,"[KASA] - %02d:%02d - Klient %d kupił bilet %s (%.2f zł), osób: %d, ważny do %02d:%02d\n",curtime.hour,curtime.minute,
+                log_message(3, logger_id,"[KASA] - %02d:%02d - Klient %d kupił bilet %s (%.2f zł), osób: %d, ważny do %02d:%02d\n",curtime.hour,curtime.minute,
                          request.pid_klienta, bilety[request.typ_biletu].nazwa,
                          reply.serwer.cena, request.ilosc_osob,
                          reply.serwer.end_biletu.hour, reply.serwer.end_biletu.minute);
             } else {
-                log_message(logger_id,"[KASA] - Klient %d ODRZUCONY (park pełny lub zamknięty)\n", request.pid_klienta);
+                log_message(3, logger_id,"[KASA] - Klient %d ODRZUCONY (park pełny lub zamknięty)\n", request.pid_klienta);
             }
             fflush(stdout);
 
@@ -161,7 +161,7 @@ void handle_exit(const payment_message & payment_request) {
     kasa_message reply{0};
     reply.mtype = payment_request.pid;
     if (clients_pids.find(payment_request.pid) == clients_pids.end()) {
-        log_message(logger_id,"[KASA] - BŁĄD: Brak danych biletu dla klienta %d\n", payment_request.pid);
+        log_message(3, logger_id,"[KASA] - BŁĄD: Brak danych biletu dla klienta %d\n", payment_request.pid);
         // signal_semaphore(g_park->msg_overflow_sem, 0);
         return;
     }
@@ -195,7 +195,7 @@ void handle_exit(const payment_message & payment_request) {
         czas_nadmiarowy = 0;
     }
     // daj paragon
-    log_message(logger_id, "[KASA] - Klient %d , osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", payment_request.pid, bilet.ilosc_osob,kwota_bilet,koszt_rest,
+    log_message(3, logger_id, "[KASA] - Klient %d , osób: %d koszt:(B+R+C|T):(%7.2f+%7.2f+%7.2f|%7.2f) czas w restauracji:%d, nadmiarowy %d\n", payment_request.pid, bilet.ilosc_osob,kwota_bilet,koszt_rest,
         doplata, total, payment_request.czasWRestauracji, czas_nadmiarowy );
     while (msgsnd(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long), 0) == -1) {
         if (errno == EINTR) {
@@ -207,7 +207,7 @@ void handle_exit(const payment_message & payment_request) {
     // signal(g_park->msg_overflow_sem, 0);
 
 
-    //log_message(logger_id, "[KASA MESSAGE] - confirm exit\n");
+    //log_message(3, logger_id, "[KASA MESSAGE] - confirm exit\n");
     // Aktualizuj statystyki
     zarobki += total;
     transakcje++;
@@ -237,7 +237,7 @@ int main(int argc, char *argv[]) {
     sa_int.sa_flags = 0;
     sigaction(SIGUSR1, &sa_int, nullptr);
 
-    log_message(logger_id,"[KASA] - CZYNNA (PID: %d)\n", getpid());
+    log_message(3, logger_id,"[KASA] - CZYNNA (PID: %d)\n", getpid());
     fflush(stdout);
 
     kasaId = join_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED);
@@ -248,12 +248,12 @@ int main(int argc, char *argv[]) {
 
     while (true) {
         if (koniec) {
-            log_message(logger_id,"[KASA] - Otrzymano sygnał zakończenia, zamykam kasę\n");
+            log_message(3, logger_id,"[KASA] - Otrzymano sygnał zakończenia, zamykam kasę\n");
             fflush(stdout);
             break;
         }
         // msgctl(kasaId, IPC_STAT, &buf);
-        // log_message(logger_id,"[TEST-2] [KASA] - Oczekuję na wiadomość, w kolejce: %lu wiadomości\n",
+        // log_message(3, logger_id,"[TEST-2] [KASA] - Oczekuję na wiadomość, w kolejce: %lu wiadomości\n",
         //             buf.msg_qnum);
         kasa_message msg{0};
 
@@ -270,7 +270,7 @@ int main(int argc, char *argv[]) {
         switch (msg.mtype) {
             case MSG_TYPE_VIP_TICKET:
             case MSG_TYPE_STANDARD_TICKET:
-                //log_message(logger_id,"[TEST-2] %02d:%02d [KASA] - Odebrano wiadomość od klienta  %d, typ: %ld\n", curTime.hour, curTime.minute,msg.klient.pid_klienta, msg.mtype);
+                //log_message(3, logger_id,"[TEST-2] %02d:%02d [KASA] - Odebrano wiadomość od klienta  %d, typ: %ld\n", curTime.hour, curTime.minute,msg.klient.pid_klienta, msg.mtype);
                 handle_enter(msg.klient);
                 break;
 
@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
                 }
         }
         if (msg.mtype == 105) {  // Wiadomość zakończenia
-            log_message(logger_id, "[KASA] - Otrzymano wiadomość zakończenia\n");
+            log_message(3, logger_id, "[KASA] - Otrzymano wiadomość zakończenia\n");
             break;
         }
 
@@ -295,7 +295,7 @@ int main(int argc, char *argv[]) {
 
     }
 
-    log_message(logger_id,"[KASA] Zamykam kase -Liczba transakcji: %d,Suma zarobków: %.2f zł\n",transakcje, zarobki);
+    log_message(3, logger_id,"[KASA] Zamykam kase -Liczba transakcji: %d,Suma zarobków: %.2f zł\n",transakcje, zarobki);
 
     fflush(stdout);
 

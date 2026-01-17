@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
     sa_int.sa_flags = 0;
     sigaction(SIGUSR1, &sa_int, nullptr);
 
-    log_message(logger_id,"[KASA RESTAURACJI] Uruchomiona (PID: %d)\n", getpid());
+    log_message(1, logger_id,"[KASA RESTAURACJI] Uruchomiona (PID: %d)\n", getpid());
     fflush(stdout);
 
     init_random();
@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
 
     while (true) {
         if (zakonczenie) {
-            log_message(logger_id,"Otrzymano sygnał zakonczenia, zamykam kasę restauracji\n");
+            log_message(1, logger_id,"Otrzymano sygnał zakonczenia, zamykam kasę restauracji\n");
             break;
         }
         msgctl(kasa_rest_id, IPC_STAT, &buf);
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
         SimTime curTime = g_park->czas_w_symulacji;
         signal_semaphore(g_park->park_sem, 0);
 
-        log_message(logger_id,"[RESTAURACJA] %02d:%02d - Klient %d: %.2f zł za %d min\n",
+        log_message(1, logger_id,"[RESTAURACJA] %02d:%02d - Klient %d: %.2f zł za %d min\n",
                curTime.hour, curTime.minute,
                msg.pid_klienta, msg.kwota, msg.czas_pobytu_min);
         fflush(stdout);
@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
 
     }
 
-    log_message(logger_id,"[RESTAURACJA] Zamykam kase -Liczba transakcji: %d,Suma zarobków: %.2f zł\n",licznik_transakcji,suma_przychodow);
+    log_message(1, logger_id,"[RESTAURACJA] Zamykam kase -Liczba transakcji: %d,Suma zarobków: %.2f zł\n",licznik_transakcji,suma_przychodow);
 
 
     detach_from_shared_block(g_park);

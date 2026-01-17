@@ -26,7 +26,7 @@
 // STAŁE KONFIGURACYJNE
 #define MAX_KLIENTOW_W_PARKU 100
 #define CZAS_OTWARCIA 8
-#define CZAS_ZAMKNIECIA 12
+#define CZAS_ZAMKNIECIA 20
 #define PROCENT_VIP 1
 #define LICZBA_ATRAKCJI 17
 #define MINUTA 10000
@@ -325,5 +325,15 @@ inline bool random_chance(int percent) {
 
 // Sprawdzanie poprawności
 void error_check(int id, const std::string& message);
-void log_message(int logger_id,const char* format, ...);
+void log_message(int color,int logger_id,const char* format, ...);
 void end_logger(int logger_id);
+
+inline const char* ANSI_COLORS[] = {
+    "\033[30m", // czarny
+    "\033[36m", // cyan
+    "\033[32m", // zielony
+    "\033[33m", // żółty
+    "\033[34m", // niebieski
+    "\033[35m", // magenta
+    "\033[37m", // biały
+};

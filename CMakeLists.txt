@@ -27,3 +27,5 @@ target_link_libraries(klient PRIVATE Threads::Threads)
 target_link_libraries(pracownik PRIVATE Threads::Threads)
 target_link_libraries(restauracja PRIVATE Threads::Threads)
 target_link_libraries(Kasa PRIVATE Threads::Threads)
+
+add_dependencies(park klient pracownik Kasa restauracja)

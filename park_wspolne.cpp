@@ -162,7 +162,7 @@ float oblicz_koszt_restauracji(int czas_min) {
 }
 
 
-void log_message( int logger_id, const char* format, ...) {
+void log_message(int color, int logger_id, const char* format, ...) {
 
     if (logger_id == -1) {
         fprintf(stderr, "Kolejka nie zainicjalizowana\n");
@@ -176,6 +176,10 @@ void log_message( int logger_id, const char* format, ...) {
     va_start(args, format);
     vsnprintf(msg.message, sizeof(msg.message), format, args);
     va_end(args);
+
+    printf("%s%s\033[0m", ANSI_COLORS[color], msg.message);
+
+    fflush(stdout);
     while (true) {
         if (msgsnd(logger_id, &msg, sizeof(msg) - sizeof(long), 0) != -1) {
             break;
