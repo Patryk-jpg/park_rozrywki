@@ -26,7 +26,7 @@
 // STAŁE KONFIGURACYJNE
 #define MAX_KLIENTOW_W_PARKU 100
 #define CZAS_OTWARCIA 8
-#define CZAS_ZAMKNIECIA 20
+#define CZAS_ZAMKNIECIA 12
 #define PROCENT_VIP 1
 #define LICZBA_ATRAKCJI 17
 #define MINUTA 10000
@@ -55,6 +55,8 @@
 #define MSG_TYPE_QUIT_ATTRACTION 99     // Rezygnacja z atrakcji
 #define MSG_TYPE_EXIT_PAYMENT 1       // Płatność przy wyjściu
 #define MSG_TYPE_END_QUEUE 105 //zakoncz kolejke
+#define MSG_TYPE_CLEAR_QUEUE 104 //zakoncz kolejke
+#define MAX_W_KOLEJCE 512
 #define SEZON_LETNI true
 
 
@@ -307,12 +309,9 @@ float oblicz_koszt_restauracji(int czas_min);
 
 // Generator liczb losowych
 #include <random>
-static std::mt19937 rng;
+extern std::mt19937 rng;
 
-inline void init_random() {
-    unsigned int seed = static_cast<unsigned int>(time(NULL)) ^ (getpid() << 16);
-    rng.seed(seed);
-}
+ void init_random();
 
 inline int random_int(int min, int max) {
     std::uniform_int_distribution<int> dist(min, max);

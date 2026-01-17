@@ -221,8 +221,6 @@ void poczekaj_na_pracownikow() {
 }
 
 void poczekaj_na_klientow() {
-
-
     log_message(4, logger_id,"[PARK] Czekam na zakonczenie klientów...\n");
     for (size_t i = 0; i <  klienci_pids.size(); i++) {
         int status;
@@ -334,10 +332,10 @@ int   main() {
     error_check(queuefile, "open");
     close(queuefile);
 
-    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED, 0600);
+    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED, 0640);
     kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED, 0600);
     logger_id = create_message_queue(SEED_FILENAME_QUEUE, 'L', 0600);
-    kasa_reply_id =  create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 3, 0600);
+    kasa_reply_id =  create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 3, 0650);
     kasa_rest_reply_id   = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 4, 0600);
 
     g_park = attach_to_shared_block();

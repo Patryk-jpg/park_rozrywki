@@ -59,9 +59,11 @@ int main(int argc, char* argv[]) {
 
     if (random_chance(1)) {
         g_klient.czyVIP=true;
+        log_message(2, logger_id,"Klient %d: kliVIP\n", getpid());
+
     }
     g_klient.wiek = random_int(2, 90);
-    g_klient.wzrost = g_klient.wiek<18? random_int(50, 180) : random_int(150,200);
+    g_klient.wzrost = g_klient.wiek<18 ? random_int(50, 180) : random_int(150,200);
     g_klient.pidKlienta = getpid();
     g_klient.typ_biletu = random_int(0, 3);
     g_klient.czasWRestauracji =0;
@@ -133,10 +135,9 @@ void wejdz_do_parku() {
         log_message(2, logger_id,"[TEST-2] %02d:%02d - Klient %d wchodzi do kolejki (bilet: %s, osób: %d)\n",curTime.hour, curTime.minute,
                    g_klient.pidKlienta, bilety[g_klient.typ_biletu].nazwa, g_klient.ilosc_osob);
     }
-    // wait_semaphore(g_park->msg_overflow_sem, 0,0);
     while (msgsnd(kasaId, &k_msg, sizeof(k_msg) - sizeof(long), IPC_NOWAIT) == -1) {
         //log_message(2, logger_id,"%02d:%02d - Klient %d ERROR msgsnd\n", curTime.hour,curTime.minute, g_klient.pidKlienta);
-        if (errno == EINTR || errno == EAGAIN) {
+        if (errno == EINTR) {
             if (!g_park->park_otwarty) return;
             continue;
         } else if (errno == EIDRM || errno == EINVAL) {
@@ -153,9 +154,9 @@ void wejdz_do_parku() {
     kasa_message reply{0};
     while (msgrcv(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long),
                                 g_klient.pidKlienta, 0) == -1) {
-        log_message(2, logger_id, "Klient %d nie udalo sie wejsc- sygnal wyrzucil z kolejki do parku\n");
+        //log_message(2, logger_id, "Klient %d nie udalo sie wejsc- sygnal wyrzucil z kolejki do parku\n");
         if (errno == EINTR) {continue;}
-        if (errno == EIDRM || errno == EINVAL) {break;}
+        if (errno == EIDRM || errno == EINVAL) {return;}
         return;
     }
     curTime = getTime();
@@ -358,6 +359,12 @@ void baw_sie() {
            wyjdz_z_parku();
            return;
        }
+       if (g_klient.czyVIP) {
+           if (random_chance(10)) {
+               log_message(2, logger_id,"Klient VIP %d: uznał że wyjdzie\n", g_klient.pidKlienta);
+               return;
+           }
+       }
        if (g_klient.odwiedzone.size() >= 17) {
            log_message(2, logger_id,"Klient %d: odwiedził wszystkie dostępne atrakcje\n", g_klient.pidKlienta);
            break;
@@ -416,7 +423,6 @@ void wyjdz_z_parku() {
     SimTime curTime = getTime();
     log_message(2, logger_id,"%02d:%02d - Klient %d idzie do kasy zapłacić przy wyjściu\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
 
-    // wait_semaphore(g_park->msg_overflow_sem,0,0);
 
     while (msgsnd(kasaId, &payment_msg, sizeof(payment_msg) - sizeof(long), 0) == -1) {
         if (errno == EAGAIN) {continue;}
@@ -467,7 +473,7 @@ void  zaplac_za_restauracje_z_zewnatrz(int czas_pobytu) {
     curTime = getTime();
     log_message(2, logger_id,"%02d:%02d - Klient %d wychodzi z restauracji, zapłacił %.2f zł\n",
                curTime.hour, curTime.minute, g_klient.pidKlienta, msg.kwota);
-
+    g_klient.czasWRestauracji = 0;
 }
 
 bool spelniaWymagania(int nr_atrakcji) {

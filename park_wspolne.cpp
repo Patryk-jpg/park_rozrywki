@@ -1,6 +1,11 @@
 #include "park_wspolne.h"
 
 using namespace std;
+std::mt19937 rng;
+void init_random() {
+    unsigned int seed = static_cast<unsigned int>(time(NULL)) ^ (getpid() << 16);
+    rng.seed(seed);
+}
 
 void print_error_impl(const char* file, int line, const char* func, const std::string& msg) {
     int error_code = errno; // bieżący kod błędu
