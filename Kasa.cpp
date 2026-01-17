@@ -10,6 +10,8 @@ int kasaId = -1;
 float zarobki = 0.0f;
 int transakcje = 0;
 std::map<pid_t, serwer_message> clients_pids;
+std::queue<klient_message> oczekujacy;
+std::queue<klient_message> oczekujacy_vip;
 
 void sig3handler(int sig) {
     koniec = 1;
@@ -17,7 +19,7 @@ void sig3handler(int sig) {
 
 /**
  * Próbuje zarezerwować miejsca dla klientów w parku.
- * Zwraca 0 jeśli sukces, -1 jeśli park pełny lub zamknięty.
+ * Zwraca 0 jeśli sukces, -1 jeśli park zamknięty i 1 jeśli pełny ale dalej otwarty.
  */
 
 
@@ -31,8 +33,8 @@ int update_licznik_klientow(klient_message& request) {
     }
     if (g_park->clients_count + request.ilosc_osob > MAX_KLIENTOW_W_PARKU ) {
         signal_semaphore(g_park->park_sem, 0);
-        log_message(3, logger_id,"[TEST-1] - odrzucono klienta bo ilosć klientów: %d\n", g_park->clients_count );
-        return -1;
+        log_message(3, logger_id,"[TEST-1] -  klient nie wchodzi bo ilosć klientów, kasa powiadomi go kiedy moze wejsc: %d\n", g_park->clients_count );
+        return 1;
     }
     g_park->clients_count += request.ilosc_osob;
     signal_semaphore(g_park->park_sem, 0);
@@ -122,13 +124,17 @@ void handle_enter(klient_message request) {
             // Spróbuj zarezerwować miejsca
             reply.serwer.status = update_licznik_klientow(request);
 
-            // Sprawdź czy park nadal otwarty
-            wait_semaphore(g_park->park_sem, 0, 0);
-            if (!g_park->park_otwarty || koniec) {
-                reply.serwer.status = -1;
-            }
-            signal_semaphore(g_park->park_sem, 0);
 
+            if (reply.serwer.status == 1) {
+                if (oczekujacy.size() + oczekujacy_vip.size() < MAX_W_KOLEJCE || request.typ_biletu == BILETVIP) {
+                    log_message(3, logger_id,"[KASA] - klient %d dodany do oczekujących (park pełny) VIP? %d\n", request.pid_klienta, request.typ_biletu == BILETVIP);
+                    if (request.typ_biletu == BILETVIP) { oczekujacy_vip.push(request);}
+                    else{oczekujacy.push(request);}
+                }
+                else {
+                    reply.serwer.status = -1;
+                }
+            }
             // Wyślij odpowiedź
             while (msgsnd(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long), 0) == -1) {
                 if (errno == EINTR) {
@@ -150,11 +156,41 @@ void handle_enter(klient_message request) {
                          request.pid_klienta, bilety[request.typ_biletu].nazwa,
                          reply.serwer.cena, request.ilosc_osob,
                          reply.serwer.end_biletu.hour, reply.serwer.end_biletu.minute);
-            } else {
-                log_message(3, logger_id,"[KASA] - Klient %d ODRZUCONY (park pełny lub zamknięty)\n", request.pid_klienta);
+            }
+            else {
+                log_message(3, logger_id,"[KASA] - Klient %d ODRZUCONY (park zamknięty/kolejka oczekujących pełna)\n", request.pid_klienta);
             }
             fflush(stdout);
 
+}
+
+void wpusc_oczekujacych() {
+    while (true) {
+        if (oczekujacy_vip.empty()) break;
+        klient_message request = oczekujacy_vip.front();
+        wait_semaphore(g_park->park_sem, 0, 0);
+        int clients_count = g_park->clients_count;
+        signal_semaphore(g_park->park_sem, 0);
+        if (clients_count+ request.ilosc_osob <= MAX_KLIENTOW_W_PARKU) {
+            handle_enter(request);
+            oczekujacy_vip.pop();
+            continue;
+        }
+        break;
+    }
+    while (true) {
+        if (oczekujacy.empty()) break;
+        klient_message request = oczekujacy.front();
+        wait_semaphore(g_park->park_sem, 0, 0);
+        int clients_count = g_park->clients_count;
+        signal_semaphore(g_park->park_sem, 0);
+        if (clients_count+ request.ilosc_osob <= MAX_KLIENTOW_W_PARKU) {
+            handle_enter(request);
+            oczekujacy.pop();
+            continue;
+        }
+        break;
+    }
 }
 
 void handle_exit(const payment_message & payment_request) {
@@ -217,6 +253,8 @@ void handle_exit(const payment_message & payment_request) {
     g_park->clients_count -= clients_pids[payment_request.pid].ilosc_osob;
     signal_semaphore(g_park->park_sem, 0);
 
+    wpusc_oczekujacych();
+
     // Usuń z mapy
 
     clients_pids.erase(payment_request.pid);
@@ -277,7 +315,15 @@ int main(int argc, char *argv[]) {
             case MSG_TYPE_EXIT_PAYMENT:
                 handle_exit(msg.payment);
                 break;
-
+            case MSG_TYPE_CLEAR_QUEUE:
+                while (!oczekujacy_vip.empty()) {
+                    handle_enter(oczekujacy_vip.front());
+                    oczekujacy_vip.pop();
+                }
+                while (!oczekujacy.empty()) {
+                    handle_enter(oczekujacy.front());
+                    oczekujacy.pop();
+                }
             default:
                 if (msg.mtype == 105) {
                     break;

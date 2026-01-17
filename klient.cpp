@@ -160,6 +160,18 @@ void wejdz_do_parku() {
         return;
     }
     curTime = getTime();
+
+    if (reply.serwer.status == 1) {
+        log_message(2, logger_id,"[TEST-2] %02d:%02d - Klient %d czeka na swoją kolej\n",curTime.hour,curTime.minute, g_klient.pidKlienta);
+        while (msgrcv(g_park->kasa_reply_id, &reply, sizeof(reply) - sizeof(long),
+                               g_klient.pidKlienta, 0) == -1) {
+            if (errno == EINTR) {continue;}
+            if (errno == EIDRM || errno == EINVAL) {return;}
+            return;
+            }
+    }
+    curTime = getTime();
+
     log_message(2, logger_id,"[TEST-2] %02d:%02d - Klient %d wychodzi z kolejki do kasy: VIP? : %d\n",curTime.hour,curTime.minute, g_klient.pidKlienta, g_klient.czyVIP);
     fflush(stdout);
 
@@ -362,6 +374,7 @@ void baw_sie() {
        if (g_klient.czyVIP) {
            if (random_chance(10)) {
                log_message(2, logger_id,"Klient VIP %d: uznał że wyjdzie\n", g_klient.pidKlienta);
+               wyjdz_z_parku();
                return;
            }
        }

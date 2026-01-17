@@ -221,6 +221,9 @@ void poczekaj_na_pracownikow() {
 }
 
 void poczekaj_na_klientow() {
+    kasa_message msg{0};
+    msg.mtype = MSG_TYPE_CLEAR_QUEUE;
+    msgsnd(kasa_id, &msg, sizeof(msg) - sizeof(long), 0);
     log_message(4, logger_id,"[PARK] Czekam na zakonczenie klientów...\n");
     for (size_t i = 0; i <  klienci_pids.size(); i++) {
         int status;
