@@ -227,7 +227,7 @@ int main(int argc, char* argv[]) {
                         czasyJazdy[mes.wagonik].osob_na_pid.erase(pid);
 
                         SimTime curtime = getTime();
-                        log_message(5, logger_id,"[TEST-4] - [PRACOWNIK-%d]-  %02d:%02d,Klient %d zrezygnował z %s (wagonik %d) grupa %d osób\n",nr_atrakcji, curtime.hour, curtime.minute,
+                        log_message(5, logger_id,"[PRACOWNIK-%d]-[TEST-4] -   %02d:%02d,Klient %d zrezygnował z %s (wagonik %d) grupa %d osób\n",nr_atrakcji, curtime.hour, curtime.minute,
                                      mes.ack, atrakcje[nr_atrakcji].nazwa, mes.wagonik, osob);
                         fflush(stdout);
                     }
@@ -268,7 +268,7 @@ int main(int argc, char* argv[]) {
                     int ilosc_osob = 0;
                     for (auto& [pid, ile] : czasyJazdy[i].osob_na_pid)
                         ilosc_osob += ile;
-                    log_message(5, logger_id,"[TEST-4] - [PRACOWNIK-%d] -  %02d:%02d - Atrakcja %s (wagonik %d) zakończona, wypuszczono %d klientów\n", nr_atrakcji,
+                    log_message(5, logger_id,"[PRACOWNIK-%d] -[TEST-4] -   %02d:%02d - Atrakcja %s (wagonik %d) zakończona, wypuszczono %d klientów\n", nr_atrakcji,
                                  curTime.hour, curTime.minute,
                                  atrakcje[nr_atrakcji].nazwa, i, ilosc_osob);
                     // Zwolnij wagonik
@@ -336,7 +336,7 @@ int main(int argc, char* argv[]) {
                 int zajete = atrakcje[nr_atrakcji].po_ile_osob_wchodzi - wolne_miejsca;
                 uruchomione_atrakcje++;
 
-                log_message(5, logger_id,"[TEST-4] - [PRACOWNIK-%d] -  %02d:%02d - URUCHOMIENIE %s (wagonik %d): %d osób w %d grupach, koniec o %02d:%02d\n", nr_atrakcji,
+                log_message(5, logger_id,"[PRACOWNIK-%d] -[TEST-4] -   %02d:%02d - URUCHOMIENIE %s (wagonik %d): %d osób w %d grupach, koniec o %02d:%02d\n", nr_atrakcji,
                              curTime.hour, curTime.minute,
                              atrakcje[nr_atrakcji].nazwa, freeCart,
                              zajete, (int)nowa_jazda.pids.size(),

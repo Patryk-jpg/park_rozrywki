@@ -283,9 +283,9 @@ void zakoncz() {
         PRINT_ERROR("msgctl IPC_RMID kasa");
     }
 
-    log_message(4, logger_id,"PARK ZAMKNIETY");
+    log_message(4, logger_id,"[PARK] - PARK ZAMKNIETY");
     printf("park zamkniety");
-    log_message(4, logger_id,"Sprzątanie zasobów...\n");
+    log_message(4, logger_id,"[PARK] - Sprzątanie zasobów...\n");
     end_logger(logger_id);
     pthread_join(g_logger_tid, NULL);
     if (msgctl(logger_id, IPC_RMID, NULL) == -1) {
@@ -407,7 +407,7 @@ int   main() {
 
         if (g_park->czas_w_symulacji.minute == 0) {
             int ludzi = g_park->clients_count;
-            log_message(4, logger_id,"[PARK] %02d:00 - Klientów w parku: %d\n",
+            log_message(4, logger_id,"[PARK] - %02d:00 - Klientów w parku: %d\n",
                    g_park->czas_w_symulacji.hour, ludzi);
             fflush(stdout);
         }

@@ -33,7 +33,7 @@ int update_licznik_klientow(klient_message& request) {
     }
     if (g_park->clients_count + request.ilosc_osob > MAX_KLIENTOW_W_PARKU ) {
         signal_semaphore(g_park->park_sem, 0);
-        log_message(3, logger_id,"[TEST-1] -  klient nie wchodzi bo ilosć klientów, kasa powiadomi go kiedy moze wejsc: %d\n", g_park->clients_count );
+        log_message(3, logger_id,"[KASA] [TEST-1] -  klient nie wchodzi bo ilosć klientów, kasa powiadomi go kiedy moze wejsc: %d\n", g_park->clients_count );
         return 1;
     }
     g_park->clients_count += request.ilosc_osob;

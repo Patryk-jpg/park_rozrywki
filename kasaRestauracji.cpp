@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
 
     while (true) {
         if (zakonczenie) {
-            log_message(1, logger_id,"Otrzymano sygnał zakonczenia, zamykam kasę restauracji\n");
+            log_message(1, logger_id,"[KASA-RESTAURACJI] Otrzymano sygnał zakonczenia, zamykam kasę restauracji\n");
             break;
         }
         msgctl(kasa_rest_id, IPC_STAT, &buf);
