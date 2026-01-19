@@ -245,11 +245,16 @@ kolorowy output logów zależny od typu procesu
 Testy zostały przeprowadzone z lekkimi modyfikacjami w stosunku do oryginału jako że zmiana / specjalna generacja X procesów często nie była potrzebna np. dla testu 1, zamiast generować 210 idealnie klientów wystarczy zobaczyć jak program zachowuje się normalnie
 
 1. *Test 1*
-* N = 100
+* N = 1000
+MAX_OCZEKUJACYCH = 512
  Co minute symulacji generujemy klienta który chce wejść
 * Oczekiwane:
-Park zaczyna odrzucać klientów przy osiągnięciu limitu
-* nigdy > 100 osób w parku
+
+Po osiągnięciu limitu osób w parku (1000) kasa zaczyna tworzyć kolejkę oczekujących których nie odrzuca, po jej zapełnieniu (przekroczenie 512) Kasa odrzuca klientów. 
+
+Kolejka oczekujących może mieć >512 jako że VIPOWIE zawsze będą dodawani do oczekujących 
+
+
 
 * ![screen1](/screens/screen1.png)
 

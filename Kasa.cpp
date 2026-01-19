@@ -33,7 +33,7 @@ int update_licznik_klientow(klient_message& request) {
     }
     if (g_park->clients_count + request.ilosc_osob > MAX_KLIENTOW_W_PARKU ) {
         signal_semaphore(g_park->park_sem, 0);
-        log_message(3, logger_id,"[KASA] [TEST-1] -  klient nie wchodzi bo ilosć klientów, kasa powiadomi go kiedy moze wejsc: %d\n", g_park->clients_count );
+        log_message(3, logger_id,"[KASA] [TEST-1] -  klient %d nie wchodzi bo ilosć klientów, kasa powiadomi go kiedy moze wejsc: %d\n",request.pid_klienta, g_park->clients_count );
         return 1;
     }
     g_park->clients_count += request.ilosc_osob;
@@ -158,7 +158,7 @@ void handle_enter(klient_message request) {
                          reply.serwer.end_biletu.hour, reply.serwer.end_biletu.minute);
             }
             else {
-                log_message(3, logger_id,"[KASA] - Klient %d ODRZUCONY (park zamknięty/kolejka oczekujących pełna)\n", request.pid_klienta);
+                log_message(3, logger_id,"[KASA] - Klient %d ODRZUCONY (park zamknięty/kolejka oczekujących pełna %d)\n", request.pid_klienta, oczekujacy.size() + oczekujacy_vip.size());
             }
             fflush(stdout);
 
