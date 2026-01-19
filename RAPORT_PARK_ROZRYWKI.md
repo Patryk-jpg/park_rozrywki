@@ -12,6 +12,17 @@ Wymagania projektu i szczegółowy opis są dostępne w pliku : https://github.c
 
 Projekt realizowano używając WSL podłączonego do Cliona, budowa i kompilacja plików za pomocą CMakeLists.txt
 
+Program działa również na torusie, można go pobrać i zbudować i uruchomić w następujących krokach:
+
+1. git pull https://github.com/Patryk-jpg/park_rozrywki.git
+2. cd park_rozrywki
+3. mkdir build
+4. cmake -S . -B build
+5. cmake --build build 
+6. cd build
+7. ./park
+
+
 * **Park.cpp** - program główny, (proces "kierownika"), jest odpowiedzialny za tworzenie wszystkich procesów w projekcie, oraz struktur komunikacyjnych. Podczas symulacji ciągle tworzy klientów oraz zarządza czasem. 
 
 * **Kasa.cpp** - Proces odpowiedzialny za wpusczanie i wypuszczanie klientów z parku oraz wszelkich niuansów z tym związanymi (paragony, zapis pidów itp...)
@@ -184,6 +195,9 @@ https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a
 * msgrcv() - odbieranie wiadomości:
 
     * odbieranie informacji czy udało się wejść do parku https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L152-L158
+    * jeśli park jest pełny ale otwarty to kasa zapisuje X osób jako oczekujących (aby nie odrzucać od razu niepotrzebnie), tutaj czekamy na to aż zwolni się pierwsze miejsce, jeśli zwolni się podczas otwarcia to klient zostanie wpusczony 
+    https://github.com/Patryk-jpg/park_rozrywki/blob/c4ac8e277c429afa8ddf8492294611d3cf24a51c/klient.cpp#L164C1-L172C6
+
     * odbieranie czy udało się wejść na atrakcje 
     https://github.com/Patryk-jpg/park_rozrywki/blob/989e3105be3fad58abdf9d209b591b91bb5eeefa/klient.cpp#L233-L236
     * przygotowanie do rezygnacji (zanim klient zrezygnuje to czeka X minut, za ten czas musi obserwować czy pracownik sam z siebie awaryjnie nie zakończył jazdy)
@@ -220,6 +234,10 @@ https://github.com/Patryk-jpg/park_rozrywki/blob/0a03d4e5c3942a24157beb930a2840a
 ---
 
 Poprzez ewakuację mam na myśli wcześniejsze zakończenie programu przez ctrl+c (wysłanie SIGINT)
+
+### wyróżniające elementy:
+
+kolorowy output logów zależny od typu procesu 
 
 
 ### Testy
