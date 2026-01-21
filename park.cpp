@@ -323,22 +323,22 @@ int   main() {
         exit(1);
     }
 
-    const int memfile = open(SEED_FILENAME_PARK, O_CREAT | O_RDONLY, 0666);
+    const int memfile = open(SEED_FILENAME_PARK, O_CREAT | O_RDONLY, 0600);
     error_check(memfile, "open");
     close(memfile);
 
-    const int semfile = open(SEED_FILENAME_SEMAPHORES, O_CREAT | O_RDONLY, 0666);
+    const int semfile = open(SEED_FILENAME_SEMAPHORES, O_CREAT | O_RDONLY, 0600);
     error_check(semfile, "open");
     close(semfile);
 
-    const int queuefile = open(SEED_FILENAME_QUEUE, O_CREAT | O_RDONLY, 0666);
+    const int queuefile = open(SEED_FILENAME_QUEUE, O_CREAT | O_RDONLY, 0600);
     error_check(queuefile, "open");
     close(queuefile);
 
-    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED, 0640);
+    kasa_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED, 0600);
     kasa_rest_id = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_REST_SEED, 0600);
     logger_id = create_message_queue(SEED_FILENAME_QUEUE, 'L', 0600);
-    kasa_reply_id =  create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 3, 0650);
+    kasa_reply_id =  create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 3, 0600);
     kasa_rest_reply_id   = create_message_queue(SEED_FILENAME_QUEUE, QUEUE_SEED + 4, 0600);
 
     g_park = attach_to_shared_block();

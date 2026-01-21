@@ -20,7 +20,7 @@ int get_shared_block_id() {
         perror("ftok");
         return IPC_ERROR;
     }
-    return shmget(key, sizeof(park_wspolne), 0666 | IPC_CREAT);
+    return shmget(key, sizeof(park_wspolne), 0600 | IPC_CREAT);
 }
 
 park_wspolne* attach_to_shared_block() {
@@ -140,7 +140,7 @@ int join_message_queue(const char* filename, int seed) {
     key_t key = ftok(filename, seed);
     error_check((int)key, "ftok");
 
-    int queueId = msgget(key, 0666);
+    int queueId = msgget(key, 0600);
     if (queueId == -1) {
         if (errno == ENOENT) {
             return -1;
